@@ -8,6 +8,8 @@ Lê um `auth.log` de servidor Linux e responde três perguntas:
 
 Python puro, sem bibliotecas externas. Gera um relatório no terminal e, se você quiser, um dashboard HTML que abre offline.
 
+**[▶ Ver o dashboard ao vivo](https://aurelioalmeidab.github.io/log-analyzer/dashboard.html)** (gerado a partir do `sample_auth.log`)
+
 ## O que é brute force
 
 É tentar senhas em sequência, geralmente com uma ferramenta automática, até acertar uma.
@@ -47,7 +49,7 @@ Eventos de login: 23  |  Falhas: 21
 python log_analyzer.py sample_auth.log --html dashboard.html
 ```
 
-Abra o `dashboard.html` no navegador. Ele mostra:
+Abra o `dashboard.html` no navegador, ou veja a [versão publicada](https://aurelioalmeidab.github.io/log-analyzer/dashboard.html) do log de exemplo. Ele mostra:
 
 | Seção | O que mostra |
 |---|---|
