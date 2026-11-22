@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Ataques SSH</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f1f0ec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-1: #2a78d6;
+  --link: #1c5cab;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --crit-wash: rgba(208, 59, 59, 0.07);
+  --good-wash: rgba(12, 163, 12, 0.07);
+  --recon: #c3c2b7;
+  --flash: rgba(42, 120, 214, 0.16);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --link: #86b6ef;
+    --crit-wash: rgba(208, 59, 59, 0.14);
+    --good-wash: rgba(12, 163, 12, 0.12);
+    --recon: #5d5c57;
+    --flash: rgba(57, 135, 229, 0.24);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --series-1: #3987e5;
+  --link: #86b6ef;
+  --crit-wash: rgba(208, 59, 59, 0.14);
+  --good-wash: rgba(12, 163, 12, 0.12);
+  --recon: #5d5c57;
+  --flash: rgba(57, 135, 229, 0.24);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 var(--sans);
+}
+a { color: var(--link); }
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+h1 { font-size: 22px; font-weight: 650; }
+h2 { font-size: 15px; font-weight: 650; }
+h3 { font-size: 13px; font-weight: 650; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.muted { color: var(--muted); }
+.sub { color: var(--ink-2); }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.meta { color: var(--ink-2); margin-top: 6px; }
+.meta span + span::before { content: "·"; margin: 0 8px; color: var(--muted); }
+
+button {
+  font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px;
+}
+button:hover { background: var(--surface-2); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--series-1); outline-offset: 2px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+.card-head { margin-bottom: 14px; }
+.card-head p { color: var(--ink-2); margin-top: 4px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-2 > .card { margin-bottom: 0; }
+
+/* Veredito */
+.verdict { border-left: 4px solid var(--critical); background: var(--crit-wash); }
+.verdict.ok { border-left-color: var(--good); background: var(--good-wash); }
+.verdict h2 { font-size: 18px; margin: 8px 0 6px; }
+.verdict p { color: var(--ink-2); max-width: 80ch; }
+.verdict .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Badges de risco: ponto colorido + texto (cor nunca sozinha) */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px 2px 7px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ink);
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--muted)); }
+.badge.critico { --dot: var(--critical); }
+.badge.alto { --dot: var(--serious); }
+.badge.medio { --dot: var(--warning); }
+.badge.baixo { --dot: var(--good); }
+.tag {
+  display: inline-block; padding: 1px 7px; border-radius: 6px;
+  background: var(--surface-2); color: var(--ink-2); font-size: 12px; white-space: nowrap;
+}
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.kpi .label { color: var(--ink-2); font-size: 12.5px; }
+.kpi .value { font-size: 28px; font-weight: 650; margin-top: 2px; }
+.kpi .note { color: var(--muted); font-size: 12px; }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; margin: 0 -4px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+.ip-link {
+  font-family: var(--mono); font-size: 12.5px; color: var(--link);
+  background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+}
+.ip-link:hover { background: none; }
+.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; }
+
+/* Barras horizontais */
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(60px, 90px) 1fr 24px 112px; gap: 10px; align-items: center; min-height: 24px; }
+.bar-row .name { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { position: relative; height: 20px; display: flex; align-items: center; }
+.bar-track::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; border-left: 1px solid var(--axis); }
+.bar { height: 10px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 3px; }
+.bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.bar-row .flags { display: flex; gap: 6px; }
+
+/* Alvo */
+.target-host { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin-top: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ferramentas e técnicas */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.item { padding: 12px 0; border-top: 1px solid var(--grid); }
+.item:first-of-type { border-top: 0; }
+.item-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.item-head strong { font-size: 14px; }
+.item p { color: var(--ink-2); margin-top: 4px; }
+.evidence { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
+.line-link {
+  font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--link);
+}
+.mitre { font-family: var(--mono); font-size: 12px; }
+
+/* Sequência por IP */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-2); font-size: 12.5px; margin-bottom: 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.seq-row { display: grid; grid-template-columns: 190px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); align-items: start; }
+.seq-row:first-of-type { border-top: 0; }
+.seq-who { display: grid; gap: 4px; justify-items: start; }
+.seq { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.chip {
+  width: 20px; height: 20px; border-radius: 4px; border: 0; padding: 0;
+  display: inline-grid; place-items: center;
+  font: 700 11px/1 var(--sans); color: #0b0b0b; cursor: pointer;
+}
+.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; background-image: none; }
+.chip.failed { background: var(--serious); }
+.chip.failed:hover { background: var(--serious); }
+.chip.accepted { background: var(--good); }
+.chip.accepted:hover { background: var(--good); }
+.chip.crit { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
+.chip.crit:hover { background: var(--critical); }
+.chip.recon { background: var(--recon); color: var(--ink); }
+.chip.recon:hover { background: var(--recon); }
+.limit { display: inline-flex; flex-direction: column; align-items: center; margin: 0 4px; height: 30px; justify-content: center; }
+.limit::before { content: ""; width: 2px; flex: 1; background: var(--ink); }
+.limit span { font-size: 10px; color: var(--ink-2); line-height: 1; margin-top: 2px; }
+.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; grid-column: 2; }
+
+/* Log */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { padding: 4px 10px; border-radius: 999px; font-size: 12.5px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+select, input[type="search"] {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0;
+}
+input[type="search"] { flex: 1 1 200px; }
+.count { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
+.log {
+  font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  background: var(--surface-2); border-radius: 8px; padding: 6px 0;
+  max-height: 560px; overflow: auto;
+}
+.log-row { display: grid; grid-template-columns: 40px 92px 1fr; gap: 10px; padding: 2px 12px; }
+.log-row:hover { background: var(--flash); }
+.log-row.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--flash); box-shadow: inset 3px 0 0 var(--series-1); } to { background: transparent; } }
+.log-row .ln { color: var(--muted); text-align: right; user-select: none; }
+.log-row .txt { white-space: pre-wrap; word-break: break-word; }
+.k { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); white-space: nowrap; }
+.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); }
+.k.failed, .k.invalid_user { --kc: var(--serious); }
+.k.accepted, .k.session { --kc: var(--good); }
+.k.accepted.crit { --kc: var(--critical); color: var(--ink); }
+.k.recon { --kc: var(--recon); }
+.k.client { --kc: var(--series-1); }
+.hl-kw { font-weight: 700; }
+.hl-ip { color: var(--link); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid; gap: 6px; }
+
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; max-width: 320px;
+  background: var(--ink); color: var(--surface); border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+}
+#tip[hidden] { display: none; }
+
+@media (max-width: 860px) {
+  .grid-2, .split { grid-template-columns: 1fr; }
+  .seq-row { grid-template-columns: 1fr; }
+  .seq-sum { grid-column: 1; }
+}
+@media (max-width: 560px) {
+  .top { flex-direction: column; }
+  .bar-row { grid-template-columns: minmax(60px, 90px) 1fr 24px; }
+  .bar-row .flags { grid-column: 2 / 4; }
+  .bar-row .flags:empty { display: none; }
+  .log-row { grid-template-columns: 30px 1fr; }
+  .log-row .k { grid-column: 2; }
+  .log-row .txt { grid-column: 1 / 3; }
+  .kpi .value { font-size: 24px; }
+}
+@media (forced-colors: active) {
+  .chip, .badge::before, .k::before { forced-color-adjust: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Analisador de logs SSH</p>
+      <h1>Painel de ataques</h1>
+      <p class="meta" id="meta"></p>
+    </div>
+    <button id="theme" type="button" aria-label="Alternar tema claro/escuro">◐ Tema</button>
+  </header>
+
+  <main>
+    <section class="card verdict" id="verdict" aria-live="polite"></section>
+    <section class="kpis" id="kpis" aria-label="Resumo"></section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Origem dos ataques</h2>
+        <p>Quem tentou entrar, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
+      </div>
+      <div class="table-wrap"><table id="attackers"></table></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="card-head">
+          <h2>Alvo</h2>
+          <p>O que foi atacado neste servidor.</p>
+        </div>
+        <div id="target"></div>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <h2>Contas mais atacadas</h2>
+          <p>Falhas de login por conta.</p>
+        </div>
+        <div class="bars" id="accounts"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Ferramentas e técnicas</h2>
+        <p>Inferidas do banner do cliente SSH e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
+      </div>
+      <div class="split">
+        <div><h3>Ferramentas prováveis</h3><div id="tools"></div></div>
+        <div><h3>Técnicas (MITRE ATT&amp;CK)</h3><div id="techniques"></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Sequência de eventos por IP</h2>
+        <p>O log é lido na ordem. Contar falhas mostra o brute force; só a ordem mostra que o login aceito veio <em>depois</em> delas.</p>
+      </div>
+      <div class="legend" id="seq-legend"></div>
+      <div id="sequences"></div>
+    </section>
+
+    <section class="card" id="log-card">
+      <div class="card-head">
+        <h2>Log completo</h2>
+      </div>
+      <div class="filters">
+        <div class="seg" id="kind-filter" role="group" aria-label="Tipo de linha"></div>
+        <select id="ip-filter" aria-label="Filtrar por IP"></select>
+        <input type="search" id="search" placeholder="Buscar no log…" aria-label="Buscar no log">
+      </div>
+      <p class="count" id="log-count"></p>
+      <div class="log" id="log" tabindex="0" aria-label="Linhas do log"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Use apenas em logs seus ou de laboratório.</p>
+    <p>"Ferramenta provável" é heurística: o banner do cliente pode ser falsificado e só aparece no log com <span class="mono">LogLevel DEBUG1</span>; a porta de destino aparece com <span class="mono">LogLevel VERBOSE</span>.</p>
+  </footer>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(() => {
+  "use strict";
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const $ = (sel) => document.querySelector(sel);
+  const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+  // Cria elementos sem innerHTML: todo texto do log entra como texto, nunca como HTML.
+  function h(tag, attrs, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of children.flat(Infinity)) {
+      if (c == null || c === false) continue;
+      el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+
+  const RISK = {
+    critico: "Crítico",
+    alto: "Alto",
+    medio: "Médio",
+    baixo: "Baixo",
+  };
+  const KIND = {
+    failed: "FALHA",
+    invalid_user: "USUÁRIO INVÁLIDO",
+    accepted: "ACEITO",
+    session: "SESSÃO",
+    recon: "VARREDURA",
+    client: "CLIENTE",
+    connection: "CONEXÃO",
+    other: "",
+  };
+  const MITRE_URL = (id) => "https://attack.mitre.org/techniques/" + id.replace(".", "/") + "/";
+  const byIp = Object.fromEntries(D.attackers.map((a) => [a.ip, a]));
+  const critLines = new Set(D.alerts.map((a) => a.line));
+  const clock = (t) => (t ? t.replace(/^.*?(\d{2}:\d{2}:\d{2}).*$/, "$1") : "—");
+  const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
+
+  const badge = (risk) => h("span", { class: "badge " + risk }, RISK[risk]);
+  const ipButton = (ip) =>
+    h("button", { class: "ip-link", type: "button", onclick: (e) => { e.stopPropagation(); showIp(ip); } }, ip);
+  const lineLink = (n) =>
+    h("button", { class: "line-link", type: "button", "data-tip": "Ir para a linha " + n, onclick: () => jumpTo(n) }, "L" + n);
+
+  // ---------- Cabeçalho ----------
+  const meta = $("#meta");
+  meta.append(
+    h("span", null, h("span", { class: "mono" }, D.file)),
+    h("span", null, "host " + (D.hosts.join(", ") || "—")),
+    h("span", null, (D.period.start || "—") + " → " + (D.period.end || "—")),
+    h("span", null, "gerado em " + D.generated)
+  );
+
+  // ---------- Veredito ----------
+  const verdict = $("#verdict");
+  if (D.alerts.length) {
+    const a = D.alerts[0];
+    const who = byIp[a.ip];
+    verdict.append(
+      badge("critico"),
+      h("h2", null, D.alerts.length === 1 ? "Um atacante conseguiu entrar" : D.alerts.length + " logins aceitos após brute force"),
+      h("p", null,
+        h("strong", { class: "mono" }, a.ip),
+        " errou a senha " + plural(a.failures, "vez", "vezes") + " e depois entrou como ",
+        h("strong", { class: "mono" }, a.user),
+        " em " + a.time + (who ? ". Ferramenta provável: " + who.tool + "." : "."),
+        D.alerts.length > 1 ? " Há outros " + (D.alerts.length - 1) + " alertas na tabela abaixo." : ""
+      ),
+      h("div", { class: "actions" },
+        h("button", { type: "button", onclick: () => jumpTo(a.line) }, "Ver o login no log (L" + a.line + ")"),
+        h("button", { type: "button", onclick: () => showIp(a.ip) }, "Todas as linhas de " + a.ip)
+      )
+    );
+  } else {
+    verdict.classList.add("ok");
+    verdict.append(
+      badge("baixo"),
+      h("h2", null, "Nenhum atacante conseguiu entrar"),
+      h("p", null, D.totals.bruteforce
+        ? plural(D.totals.bruteforce, "IP passou", "IPs passaram") + " do limite de " + D.threshold + " falhas, mas nenhum teve login aceito depois disso."
+        : "Nenhum IP passou do limite de " + D.threshold + " falhas.")
+    );
+  }
+
+  // ---------- KPIs ----------
+  const kpis = [
+    ["Eventos de login", D.totals.events, plural(D.totals.lines, "linha lida", "linhas lidas")],
+    ["Falhas", D.totals.failed, D.totals.events ? nf.format((100 * D.totals.failed) / D.totals.events) + "% das tentativas" : ""],
+    ["Logins aceitos", D.totals.accepted, plural(D.totals.critical, "após brute force", "após brute force")],
+    ["IPs de origem", D.totals.ips, plural(D.attackers.filter((a) => a.risk !== "baixo").length, "suspeito", "suspeitos")],
+    ["Brute force", D.totals.bruteforce, "IPs com ≥ " + D.threshold + " falhas"],
+  ];
+  $("#kpis").append(...kpis.map(([label, value, note]) =>
+    h("div", { class: "kpi" },
+      h("div", { class: "label" }, label),
+      h("div", { class: "value" }, nf.format(value)),
+      h("div", { class: "note" }, note))));
+
+  // ---------- Origem ----------
+  const pace = (a) => {
+    if (a.median_gap == null) return h("span", { class: "muted" }, "—");
+    return h("span", null, nf.format(a.median_gap) + " s",
+      h("div", { class: "why" }, a.machine_pace ? "ritmo de máquina" : "ritmo humano"));
+  };
+  const usersCell = (a) => {
+    if (!a.users.length && !a.accepted_users.length) return h("span", { class: "muted" }, "—");
+    const list = a.users.length ? a.users : a.accepted_users;
+    const shown = list.slice(0, 3).join(", ") + (list.length > 3 ? " +" + (list.length - 3) : "");
+    return h("span", null, nf.format(list.length), h("div", { class: "why mono" }, shown));
+  };
+  $("#attackers").append(
+    h("thead", null, h("tr", null,
+      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, "Falhas"),
+      h("th", { class: "num" }, "Aceitos"), h("th", null, "Contas"), h("th", null, "Ferramenta provável"),
+      h("th", null, "Intervalo"), h("th", null, "Atividade"))),
+    h("tbody", null, D.attackers.map((a) =>
+      h("tr", { onclick: () => showIp(a.ip) },
+        h("td", null, ipButton(a.ip)),
+        h("td", null, badge(a.risk)),
+        h("td", { class: "num" }, nf.format(a.failed)),
+        h("td", { class: "num" }, a.accepted ? h("strong", null, nf.format(a.accepted)) : "0"),
+        h("td", null, usersCell(a)),
+        h("td", null, a.tool, h("div", { class: "why" }, a.tool_basis)),
+        h("td", null, pace(a)),
+        h("td", { class: "mono" }, clock(a.first) + " → " + clock(a.last))
+      )))
+  );
+
+  // ---------- Alvo ----------
+  const target = $("#target");
+  const t0 = D.targets[0];
+  const existing = D.accounts.filter((x) => x.exists).map((x) => x.user);
+  const missing = D.accounts.filter((x) => !x.exists).map((x) => x.user);
+  const sessions = D.attackers.filter((a) => a.risk === "critico").flatMap((a) => a.sessions.map((s) => ({ ...s, ip: a.ip })));
+  target.append(
+    h("div", { class: "target-host" },
+      h("span", { class: "big" }, t0 ? t0.dst + ":" + t0.port : (D.hosts[0] || "—")),
+      h("span", { class: "tag" }, "SSH"),
+      h("span", { class: "sub" }, "host " + (D.hosts.join(", ") || "—"))),
+    h("dl", { class: "kv" },
+      h("dt", null, "Conexões"),
+      h("dd", null, D.targets.length
+        ? D.targets.map((t) => nf.format(t.connections) + " na porta " + t.port).join(", ")
+        : h("span", { class: "muted" }, "porta não registrada (ative LogLevel VERBOSE)")),
+      h("dt", null, "Contas que existem"),
+      h("dd", null, existing.length ? h("div", { class: "chips" }, existing.map((u) => h("span", { class: "tag mono" }, u))) : "—"),
+      h("dt", null, "Contas inexistentes"),
+      h("dd", null, missing.length
+        ? [h("div", { class: "chips" }, missing.map((u) => h("span", { class: "tag mono" }, u))),
+           h("div", { class: "why" }, "Nomes tirados de listas prontas (wordlists).")]
+        : "—"),
+      h("dt", null, "Sessões do atacante"),
+      h("dd", null, sessions.length
+        ? sessions.map((s) => h("div", null, h("strong", { class: "mono" }, s.user), " aberta às " + clock(s.time) + " por " + s.ip + " ", lineLink(s.n)))
+        : h("span", { class: "muted" }, "nenhuma"))
+    )
+  );
+
+  // ---------- Contas ----------
+  const top = D.accounts.slice(0, 10);
+  const maxFail = Math.max(1, ...top.map((x) => x.failed));
+  $("#accounts").append(...(top.length ? top.map((x) =>
+    h("div", { class: "bar-row", "data-tip": x.user + ": " + plural(x.failed, "falha", "falhas") + "\nde " + x.ips.join(", ") + (x.exists ? "" : "\nconta não existe no servidor") },
+      h("span", { class: "name" }, x.user),
+      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.failed) / maxFail + "%" })),
+      h("span", { class: "val" }, nf.format(x.failed)),
+      h("div", { class: "flags" },
+        x.compromised ? h("span", { class: "badge critico" }, "comprometida") : null,
+        !x.exists ? h("span", { class: "tag" }, "não existe") : null)
+    )) : [h("p", { class: "muted" }, "Nenhuma falha de login.")]));
+
+  // ---------- Ferramentas ----------
+  const tools = {};
+  for (const a of D.attackers) {
+    (tools[a.tool] = tools[a.tool] || []).push(a);
+  }
+  $("#tools").append(...Object.entries(tools).map(([tool, list]) =>
+    h("div", { class: "item" },
+      h("div", { class: "item-head" }, h("strong", null, tool), ...list.map((a) => badge(a.risk))),
+      h("p", null, list[0].tool_basis),
+      h("div", { class: "evidence" }, "IPs:", ...list.map((a) => ipButton(a.ip)),
+        ...list.filter((a) => a.software).map((a) => lineLink(a.software.n)))
+    )));
+
+  // ---------- Técnicas ----------
+  $("#techniques").append(...(D.techniques.length ? D.techniques.map((t) =>
+    h("div", { class: "item" },
+      h("div", { class: "item-head" },
+        h("a", { class: "mitre", href: MITRE_URL(t.id), target: "_blank", rel: "noopener noreferrer" }, t.id),
+        h("strong", null, t.name)),
+      h("p", null, t.description),
+      h("div", { class: "evidence" }, "IPs:", ...t.ips.map(ipButton)),
+      h("div", { class: "evidence" }, "Evidência:", ...t.evidence.map(lineLink))
+    )) : [h("p", { class: "muted item" }, "Nenhuma técnica de ataque identificada.")]));
+
+  // ---------- Sequências ----------
+  const chip = (cls, glyph, label) => h("span", { class: "legend-item" }, h("span", { class: "chip " + cls, "aria-hidden": "true", style: "cursor:default" }, glyph), label);
+  $("#seq-legend").append(
+    chip("failed", "✕", "Falha"),
+    chip("accepted", "✓", "Login aceito"),
+    chip("accepted crit", "✓", "Aceito após o limite (crítico)"),
+    chip("recon", "?", "Varredura"),
+    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), "Limite de " + D.threshold + " falhas")
+  );
+  const MAX_CHIPS = 150;
+  $("#sequences").append(...D.attackers.filter((a) => a.sequence.length).map((a) => {
+    const chips = [];
+    for (const s of a.sequence.slice(0, MAX_CHIPS)) {
+      let cls, glyph, label;
+      if (s.k === "recon") { cls = "recon"; glyph = "?"; label = "Varredura: " + s.label; }
+      else if (s.k === "failed") { cls = "failed"; glyph = "✕"; label = "Falha nº " + s.count + " · " + s.user; }
+      else { cls = s.after_limit ? "accepted crit" : "accepted"; glyph = "✓"; label = (s.after_limit ? "ACEITO APÓS O LIMITE · " : "Aceito · ") + s.user; }
+      chips.push(h("button", {
+        class: "chip " + cls, type: "button",
+        "aria-label": label + ", linha " + s.n,
+        "data-tip": label + "\n" + s.time + " · linha " + s.n,
+        onclick: () => jumpTo(s.n),
+      }, glyph));
+      if (s.k === "failed" && s.count === D.threshold) {
+        chips.push(h("span", { class: "limit", "data-tip": "Limite de " + D.threshold + " falhas atingido" }, h("span", null, "limite")));
+      }
+    }
+    const extra = a.sequence.length - MAX_CHIPS;
+    return h("div", { class: "seq-row" },
+      h("div", { class: "seq-who" }, ipButton(a.ip), badge(a.risk)),
+      h("div", null,
+        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + extra) : null),
+        h("div", { class: "seq-sum" },
+          plural(a.failed, "falha", "falhas") + " · " + plural(a.accepted, "aceito", "aceitos") +
+          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre tentativas" : "")))
+    );
+  }));
+
+  // ---------- Log ----------
+  const KIND_GROUPS = [
+    ["all", "Todas", () => true],
+    ["failed", "Falhas", (k) => k === "failed" || k === "invalid_user"],
+    ["accepted", "Aceitos e sessões", (k) => k === "accepted" || k === "session"],
+    ["recon", "Varreduras", (k) => k === "recon"],
+    ["client", "Banner do cliente", (k) => k === "client"],
+  ];
+  const state = { kind: "all", ip: "", q: "" };
+  const kindFilter = $("#kind-filter");
+  for (const [key, label] of KIND_GROUPS) {
+    kindFilter.append(h("button", { type: "button", "data-kind": key, "aria-pressed": String(key === state.kind),
+      onclick: () => { state.kind = key; renderLog(); } }, label));
+  }
+  const ipFilter = $("#ip-filter");
+  ipFilter.append(h("option", { value: "" }, "Todos os IPs"), ...D.attackers.map((a) => h("option", { value: a.ip }, a.ip)));
+  ipFilter.addEventListener("change", () => { state.ip = ipFilter.value; renderLog(); });
+  const search = $("#search");
+  let searchTimer;
+  search.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { state.q = search.value.trim().toLowerCase(); renderLog(); }, 120);
+  });
+
+  const TOKEN = /(\b\d{1,3}(?:\.\d{1,3}){3}\b)|\b(Failed|Accepted|Invalid user)\b/g;
+  function highlight(text) {
+    const out = [];
+    let last = 0;
+    for (const m of text.matchAll(TOKEN)) {
+      if (m.index > last) out.push(text.slice(last, m.index));
+      if (m[1] && byIp[m[1]]) {
+        out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
+      } else if (m[2]) {
+        out.push(h("span", { class: "hl-kw" }, m[2]));
+      } else {
+        out.push(m[0]);
+      }
+      last = m.index + m[0].length;
+    }
+    out.push(text.slice(last));
+    return out;
+  }
+
+  const MAX_ROWS = 2000;
+  const logEl = $("#log");
+  logEl.addEventListener("click", (e) => {
+    const ip = e.target.closest(".hl-ip");
+    if (ip) showIp(ip.dataset.ip, false);
+  });
+  function matches(rec) {
+    const group = KIND_GROUPS.find((g) => g[0] === state.kind);
+    if (!group[2](rec.k)) return false;
+    if (state.ip && rec.ip !== state.ip) return false;
+    if (state.q && !rec.t.toLowerCase().includes(state.q)) return false;
+    return true;
+  }
+  function renderLog() {
+    for (const b of kindFilter.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.kind === state.kind));
+    ipFilter.value = state.ip;
+    const rows = D.lines.filter(matches);
+    const shown = rows.slice(0, MAX_ROWS);
+    logEl.replaceChildren(...shown.map((rec) => {
+      const crit = rec.k === "accepted" && critLines.has(rec.n);
+      return h("div", { class: "log-row", id: "L" + rec.n },
+        h("span", { class: "ln" }, rec.n),
+        h("span", { class: "k " + rec.k + (crit ? " crit" : "") }, crit ? "ACEITO ⚠" : KIND[rec.k]),
+        h("span", { class: "txt" }, highlight(rec.t)));
+    }));
+    if (!shown.length) logEl.append(h("div", { class: "log-row" }, h("span"), h("span"), h("span", { class: "muted" }, "Nenhuma linha com esses filtros.")));
+    $("#log-count").textContent = "Mostrando " + nf.format(shown.length) + " de " + plural(rows.length, "linha", "linhas") +
+      (rows.length !== D.lines.length ? " (" + nf.format(D.lines.length) + " no arquivo)" : "") +
+      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto" : "");
+  }
+
+  function showIp(ip, scroll = true) {
+    state.ip = ip; state.kind = "all";
+    renderLog();
+    if (scroll) $("#log-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function jumpTo(n) {
+    let row = document.getElementById("L" + n);
+    if (!row) {
+      state.kind = "all"; state.ip = ""; state.q = ""; search.value = "";
+      renderLog();
+      row = document.getElementById("L" + n);
+    }
+    if (!row) return;
+    $("#log-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => {
+      logEl.scrollTop = row.offsetTop - logEl.offsetTop - logEl.clientHeight / 3;
+      row.classList.remove("flash");
+      void row.offsetWidth;
+      row.classList.add("flash");
+    }, 250);
+  }
+  renderLog();
+
+  // ---------- Tooltip ----------
+  const tip = $("#tip");
+  function placeTip(x, y) {
+    const pad = 12, r = tip.getBoundingClientRect();
+    let left = x + pad, top = y + pad;
+    if (left + r.width > innerWidth - 8) left = x - r.width - pad;
+    if (top + r.height > innerHeight - 8) top = y - r.height - pad;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = Math.max(8, top) + "px";
+  }
+  function showTip(target, x, y) {
+    tip.textContent = target.dataset.tip;
+    tip.hidden = false;
+    placeTip(x, y);
+  }
+  document.addEventListener("mouseover", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (t) showTip(t, e.clientX, e.clientY); else tip.hidden = true;
+  });
+  document.addEventListener("mousemove", (e) => { if (!tip.hidden) placeTip(e.clientX, e.clientY); });
+  document.addEventListener("focusin", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    const r = t.getBoundingClientRect();
+    showTip(t, r.left, r.bottom);
+  });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
+  addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });
+
+  // ---------- Tema ----------
+  const root = document.documentElement;
+  try { const saved = localStorage.getItem("log-analyzer-theme"); if (saved) root.dataset.theme = saved; } catch (_) {}
+  $("#theme").addEventListener("click", () => {
+    const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("log-analyzer-theme", next); } catch (_) {}
+  });
+})();
+</script>
+</body>
+</html>

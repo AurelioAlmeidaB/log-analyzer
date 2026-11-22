@@ -1,0 +1,104 @@
+Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session closed for user root
+Nov 22 02:47:01 web01 sshd[2101]: Connection from 203.0.113.5 port 40110 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:01 web01 sshd[2101]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:01 web01 sshd[2101]: Invalid user admin from 203.0.113.5 port 40110
+Nov 22 02:47:02 web01 sshd[2101]: Failed password for invalid user admin from 203.0.113.5 port 40110 ssh2
+Nov 22 02:47:02 web01 sshd[2102]: Connection from 203.0.113.5 port 40112 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:02 web01 sshd[2102]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:02 web01 sshd[2102]: Invalid user test from 203.0.113.5 port 40112
+Nov 22 02:47:03 web01 sshd[2102]: Failed password for invalid user test from 203.0.113.5 port 40112 ssh2
+Nov 22 02:47:03 web01 sshd[2101]: Connection closed by invalid user admin 203.0.113.5 port 40110 [preauth]
+Nov 22 02:47:03 web01 sshd[2103]: Connection from 203.0.113.5 port 40114 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:03 web01 sshd[2103]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:03 web01 sshd[2103]: Invalid user oracle from 203.0.113.5 port 40114
+Nov 22 02:47:04 web01 sshd[2103]: Failed password for invalid user oracle from 203.0.113.5 port 40114 ssh2
+Nov 22 02:47:04 web01 sshd[2104]: Connection from 203.0.113.5 port 40116 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:04 web01 sshd[2104]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:05 web01 sshd[2104]: Failed password for ubuntu from 203.0.113.5 port 40116 ssh2
+Nov 22 02:47:05 web01 sshd[2105]: Connection from 203.0.113.5 port 40118 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:05 web01 sshd[2105]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:05 web01 sshd[2105]: Invalid user pi from 203.0.113.5 port 40118
+Nov 22 02:47:06 web01 sshd[2105]: Failed password for invalid user pi from 203.0.113.5 port 40118 ssh2
+Nov 22 02:47:06 web01 sshd[2106]: Connection from 203.0.113.5 port 40120 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:06 web01 sshd[2106]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:07 web01 sshd[2106]: Failed password for deploy from 203.0.113.5 port 40120 ssh2
+Nov 22 02:47:07 web01 sshd[2107]: Connection from 203.0.113.5 port 40122 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:07 web01 sshd[2107]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:07 web01 sshd[2107]: Invalid user guest from 203.0.113.5 port 40122
+Nov 22 02:47:08 web01 sshd[2107]: Failed password for invalid user guest from 203.0.113.5 port 40122 ssh2
+Nov 22 02:47:09 web01 sshd[2108]: Connection from 203.0.113.5 port 40124 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:09 web01 sshd[2108]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:10 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2
+Nov 22 02:47:11 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2
+Nov 22 02:47:12 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2
+Nov 22 02:47:12 web01 sshd[2109]: Connection from 203.0.113.5 port 40126 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:12 web01 sshd[2109]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:13 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2
+Nov 22 02:47:14 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2
+Nov 22 02:47:15 web01 sshd[2110]: Connection from 203.0.113.5 port 40128 on 10.0.0.5 port 22 rdomain ""
+Nov 22 02:47:15 web01 sshd[2110]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6
+Nov 22 02:47:16 web01 sshd[2110]: Accepted password for root from 203.0.113.5 port 40128 ssh2
+Nov 22 02:47:16 web01 sshd[2110]: pam_unix(sshd:session): session opened for user root(uid=0) by (uid=0)
+Nov 22 02:47:16 web01 systemd-logind[612]: New session 31 of user root.
+Nov 22 02:51:40 web01 sshd[2110]: Received disconnect from 203.0.113.5 port 40128:11: disconnected by user
+Nov 22 02:51:40 web01 sshd[2110]: Disconnected from user root 203.0.113.5 port 40128
+Nov 22 02:51:40 web01 sshd[2110]: pam_unix(sshd:session): session closed for user root
+Nov 22 02:51:40 web01 systemd-logind[612]: Session 31 logged out. Waiting for processes to exit.
+Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session closed for user root
+Nov 22 08:12:40 web01 sshd[3188]: Connection from 192.0.2.10 port 53210 on 10.0.0.5 port 22 rdomain ""
+Nov 22 08:12:40 web01 sshd[3188]: debug1: Remote protocol version 2.0, remote software version OpenSSH_9.6p1 Ubuntu-3ubuntu13.5
+Nov 22 08:12:47 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2
+Nov 22 08:12:55 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2
+Nov 22 08:13:04 web01 sshd[3188]: Accepted password for maria from 192.0.2.10 port 53210 ssh2
+Nov 22 08:13:04 web01 sshd[3188]: pam_unix(sshd:session): session opened for user maria(uid=1001) by (uid=0)
+Nov 22 08:13:04 web01 systemd-logind[612]: New session 32 of user maria.
+Nov 22 09:41:03 web01 sshd[3502]: Connection from 203.0.113.88 port 61000 on 10.0.0.5 port 22 rdomain ""
+Nov 22 09:41:03 web01 sshd[3502]: kex_exchange_identification: Connection closed by remote host
+Nov 22 09:41:03 web01 sshd[3502]: Connection closed by 203.0.113.88 port 61000
+Nov 22 09:41:04 web01 sshd[3503]: Connection from 203.0.113.88 port 61002 on 10.0.0.5 port 22 rdomain ""
+Nov 22 09:41:04 web01 sshd[3503]: debug1: Remote protocol version 2.0, remote software version Nmap-SSH2-Hostkey
+Nov 22 09:41:04 web01 sshd[3503]: Connection closed by 203.0.113.88 port 61002 [preauth]
+Nov 22 09:41:05 web01 sshd[3504]: Connection from 203.0.113.88 port 61004 on 10.0.0.5 port 22 rdomain ""
+Nov 22 09:41:05 web01 sshd[3504]: banner exchange: Connection from 203.0.113.88 port 61004: invalid format
+Nov 22 10:05:12 web01 sshd[3611]: Connection from 198.51.100.7 port 44871 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:12 web01 sshd[3611]: kex_exchange_identification: Connection closed by remote host
+Nov 22 10:05:12 web01 sshd[3611]: Connection closed by 198.51.100.7 port 44871
+Nov 22 10:05:20 web01 sshd[3615]: Connection from 198.51.100.7 port 44890 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:20 web01 sshd[3615]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:20 web01 sshd[3615]: Invalid user admin from 198.51.100.7 port 44890
+Nov 22 10:05:21 web01 sshd[3615]: Failed password for invalid user admin from 198.51.100.7 port 44890 ssh2
+Nov 22 10:05:21 web01 sshd[3615]: Connection closed by invalid user admin 198.51.100.7 port 44890 [preauth]
+Nov 22 10:05:22 web01 sshd[3616]: Connection from 198.51.100.7 port 44892 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:22 web01 sshd[3616]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:22 web01 sshd[3616]: Invalid user user from 198.51.100.7 port 44892
+Nov 22 10:05:23 web01 sshd[3616]: Failed password for invalid user user from 198.51.100.7 port 44892 ssh2
+Nov 22 10:05:23 web01 sshd[3616]: Connection closed by invalid user user 198.51.100.7 port 44892 [preauth]
+Nov 22 10:05:24 web01 sshd[3617]: Connection from 198.51.100.7 port 44894 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:24 web01 sshd[3617]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:24 web01 sshd[3617]: Invalid user ftpuser from 198.51.100.7 port 44894
+Nov 22 10:05:25 web01 sshd[3617]: Failed password for invalid user ftpuser from 198.51.100.7 port 44894 ssh2
+Nov 22 10:05:25 web01 sshd[3617]: Connection closed by invalid user ftpuser 198.51.100.7 port 44894 [preauth]
+Nov 22 10:05:26 web01 sshd[3618]: Connection from 198.51.100.7 port 44896 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:26 web01 sshd[3618]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:26 web01 sshd[3618]: Invalid user postgres from 198.51.100.7 port 44896
+Nov 22 10:05:27 web01 sshd[3618]: Failed password for invalid user postgres from 198.51.100.7 port 44896 ssh2
+Nov 22 10:05:27 web01 sshd[3618]: Connection closed by invalid user postgres 198.51.100.7 port 44896 [preauth]
+Nov 22 10:05:28 web01 sshd[3619]: Connection from 198.51.100.7 port 44898 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:28 web01 sshd[3619]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:28 web01 sshd[3619]: Invalid user ubnt from 198.51.100.7 port 44898
+Nov 22 10:05:29 web01 sshd[3619]: Failed password for invalid user ubnt from 198.51.100.7 port 44898 ssh2
+Nov 22 10:05:29 web01 sshd[3619]: Connection closed by invalid user ubnt 198.51.100.7 port 44898 [preauth]
+Nov 22 10:05:30 web01 sshd[3620]: Connection from 198.51.100.7 port 44900 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:30 web01 sshd[3620]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:30 web01 sshd[3620]: Invalid user support from 198.51.100.7 port 44900
+Nov 22 10:05:31 web01 sshd[3620]: Failed password for invalid user support from 198.51.100.7 port 44900 ssh2
+Nov 22 10:05:31 web01 sshd[3620]: Connection closed by invalid user support 198.51.100.7 port 44900 [preauth]
+Nov 22 10:05:32 web01 sshd[3621]: Connection from 198.51.100.7 port 44902 on 10.0.0.5 port 22 rdomain ""
+Nov 22 10:05:32 web01 sshd[3621]: debug1: Remote protocol version 2.0, remote software version Go
+Nov 22 10:05:32 web01 sshd[3621]: Invalid user git from 198.51.100.7 port 44902
+Nov 22 10:05:33 web01 sshd[3621]: Failed password for invalid user git from 198.51.100.7 port 44902 ssh2
+Nov 22 10:05:33 web01 sshd[3621]: Connection closed by invalid user git 198.51.100.7 port 44902 [preauth]
+Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session closed for user root
