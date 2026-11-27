@@ -48,3 +48,10 @@ document.addEventListener("input", (event) => {
     input.form.requestSubmit();
   }
 });
+
+// Triagem: escolher Resolvido ou Falso positivo torna a nota obrigatória já no navegador.
+document.addEventListener("change", (event) => {
+  if (!event.target.matches('input[name="status"]')) return;
+  const note = event.target.form.querySelector('textarea[name="note"]');
+  if (note) note.required = event.target.hasAttribute("data-requires-note");
+});

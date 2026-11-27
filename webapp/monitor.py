@@ -13,22 +13,22 @@ import hashlib
 import hmac
 import json
 import secrets
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
 from flask import (Blueprint, Response, abort, flash, g, jsonify, redirect, render_template, request, send_file,
                    url_for)
 
+from . import analysis
+from .analysis import PROJECT_ROOT
 from .db import get_db
-from .security import audit, can, csp_nonce, login_required, require, switch_org
+from .security import audit, csp_nonce, login_required, require, switch_org
 
-# O analisador fica na raiz do projeto, um nível acima deste pacote.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-from dashboard import analyze_lines, render_html  # noqa: E402
+from dashboard import render_html  # noqa: E402  (a raiz do projeto entra no sys.path em analysis)
 
 bp = Blueprint("monitor", __name__)
+
+STATUS_LABELS = {"novo": "Novo", "em_analise": "Em análise", "resolvido": "Resolvido", "falso_positivo": "Falso positivo"}
+SEVERITY_SQL = "CASE severity WHEN 'critico' THEN 0 WHEN 'alto' THEN 1 WHEN 'medio' THEN 2 ELSE 3 END"
 
 KINDS = {"ssh": "Servidor Linux (SSH / auth.log)", "web": "Site ou API (nginx / Apache)"}
 LOG_HINT = {"ssh": "/var/log/auth.log", "web": "/var/log/nginx/access.log"}
@@ -74,32 +74,8 @@ def _store_lines(app_id: int, lines: list[str], source: str) -> int:
     return len(clean)
 
 
-def _lines(app_id: int) -> list[str]:
-    rows = get_db().execute("SELECT line FROM log_lines WHERE app_id = ? ORDER BY id", (app_id,))
-    return [r["line"] for r in rows]
-
-
-def _analysis(app) -> dict:
-    return analyze_lines(_lines(app["id"]), kind=app["kind"], threshold=app["threshold"], source=app["name"])
-
-
 def _summary(app) -> dict:
-    """Resumo para a lista de aplicações, refeito só quando chegam linhas novas."""
-    if app["summary_version"] == app["version"] and app["summary_json"]:
-        return json.loads(app["summary_json"])
-    data = _analysis(app)
-    summary = {
-        "level": data["verdict"]["level"],
-        "title": data["verdict"]["title"],
-        "lines": data["totals"]["lines"],
-        "ips": data["totals"]["ips"],
-        "findings": [f["title"] for f in data["findings"][:3]],
-    }
-    db = get_db()
-    db.execute("UPDATE apps SET summary_json = ?, summary_version = ? WHERE id = ?",
-               (json.dumps(summary, ensure_ascii=False), app["version"], app["id"]))
-    db.commit()
-    return summary
+    return analysis.summary(app)
 
 
 def seconds_since(utc_text: str | None) -> float | None:
@@ -141,10 +117,16 @@ def agent_status(app) -> tuple[str, str]:
 
 
 def _detail(app, new_key: str | None = None):
-    count = get_db().execute("SELECT COUNT(*) FROM log_lines WHERE app_id = ?", (app["id"],)).fetchone()[0]
+    db = get_db()
+    count = db.execute("SELECT COUNT(*) FROM log_lines WHERE app_id = ?", (app["id"],)).fetchone()[0]
+    summary = _summary(app) if count else None
+    open_alerts = db.execute(
+        "SELECT * FROM alerts WHERE app_id = ? AND status IN ('novo', 'em_analise') "
+        f"ORDER BY {SEVERITY_SQL}, updated_at DESC LIMIT 6", (app["id"],)).fetchall()
     return render_template("apps/detail.html", app=app, kinds=KINDS, line_count=count, new_key=new_key,
                            server=request.host_url.rstrip("/"), log_hint=LOG_HINT[app["kind"]],
-                           summary=_summary(app) if count else None, status=agent_status(app))
+                           summary=summary, status=agent_status(app), open_alerts=open_alerts,
+                           status_labels=STATUS_LABELS)
 
 
 @bp.route("/")
@@ -196,16 +178,24 @@ def detail(app_id: int):
 @login_required
 def dashboard(app_id: int):
     app = _get_app(app_id)
+    data = analysis.analyze_app(app)
+    # Status de triagem de cada (ataque, IP), para o painel mostrar e levar ao alerta.
+    data["triage"] = {
+        f"{r['type']}|{r['ip']}": {"status": r["status"], "label": STATUS_LABELS[r["status"]],
+                                   "href": url_for("alerts.detail", alert_id=r["id"])}
+        for r in get_db().execute("SELECT id, type, ip, status FROM alerts WHERE app_id = ?", (app["id"],))
+    }
     nav = {"href": url_for("monitor.detail", app_id=app_id), "label": "Voltar para " + app["name"],
-           "title": f"{g.org['name']} · {app['name']}", "refresh": True}
-    return render_html(_analysis(app), nonce=csp_nonce(), nav=nav)
+           "title": f"{g.org['name']} · {app['name']}", "refresh": True,
+           "alerts": url_for("alerts.index", app=app_id)}
+    return render_html(data, nonce=csp_nonce(), nav=nav)
 
 
 @bp.route("/apps/<int:app_id>/relatorio.json")
 @login_required
 def report(app_id: int):
     app = _get_app(app_id, "export")
-    data = _analysis(app)
+    data = analysis.analyze_app(app)
     data.pop("lines", None)                  # o relatório leva a análise, não o log cru
     filename = f"relatorio-{app['id']}-{datetime.now():%Y%m%d-%H%M}.json"
     return Response(json.dumps(data, ensure_ascii=False, indent=2), mimetype="application/json",
@@ -220,11 +210,22 @@ def upload(app_id: int):
     if not file or not file.filename:
         flash("Escolha um arquivo de log.", "error")
         return redirect(url_for("monitor.detail", app_id=app_id))
-    text = file.read().decode("utf-8", errors="replace")
-    count = _store_lines(app["id"], text.splitlines(), "upload")
-    if not count:
+    lines = [line[:MAX_LINE_LENGTH] for line in file.read().decode("utf-8", errors="replace").splitlines()
+             if line.strip()]
+    if not lines:
         flash("O arquivo estava vazio.", "error")
         return redirect(url_for("monitor.detail", app_id=app_id))
+    # Reenviar o mesmo log (ou um que continua o anterior) não pode duplicar linhas:
+    # dobraria as ocorrências e reabriria alertas já resolvidos.
+    stored = {r[0] for r in get_db().execute("SELECT line FROM log_lines WHERE app_id = ?", (app["id"],))}
+    new_lines = [line for line in lines if line not in stored]
+    count = _store_lines(app["id"], new_lines, "upload")
+    skipped = len(lines) - len(new_lines)
+    if not count:
+        flash("Todas as linhas desse arquivo já estavam guardadas; nada mudou.", "warn")
+        return redirect(url_for("monitor.dashboard", app_id=app_id))
+    if skipped:
+        flash(f"{count} linhas novas guardadas; {skipped} já estavam aqui e foram ignoradas.")
     audit("logs_enviados", f"{app['name']} ({count} linhas)")
     get_db().commit()
     return redirect(url_for("monitor.dashboard", app_id=app_id))

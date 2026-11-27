@@ -354,22 +354,22 @@ def analyze_ssh_lines(lines: list[str], threshold: int = DEFAULT_THRESHOLD) -> d
 
     # Como corrigir
     findings = []
+    occurrence = lambda e: (e["ip"], e["line"], e["time"])  # noqa: E731
     if alerts:
-        sessions = [s["n"] for ip in alerts_by_ip for s in per_ip[ip]["sessions"]]
-        findings.append(finding("ssh_compromise", list(alerts_by_ip), len(alerts),
-                                [a["line"] for a in alerts] + sessions))
+        sessions = [(ip, s["n"]) for ip in alerts_by_ip for s in per_ip[ip]["sessions"]]
+        findings.append(finding("ssh_compromise", [(a["ip"], a["line"], a["time"]) for a in alerts], sessions))
     if bruteforce:
-        findings.append(finding("ssh_bruteforce", [ip for ip, _ in bruteforce], sum(n for _, n in bruteforce),
-                                [e["line"] for ip in brute_ips for e in events_by_ip[ip][:2]]))
-    spray = [a for a in attackers if len(a["users"]) >= 3]
+        findings.append(finding("ssh_bruteforce", [occurrence(e) for e in failed if e["ip"] in brute_ips]))
+    spray = {a["ip"] for a in attackers if len(a["users"]) >= 3}
     if spray:
-        findings.append(finding("ssh_spraying", [a["ip"] for a in spray], len(missing),
-                                [e["line"] for a in spray for e in events_by_ip[a["ip"]] if e["invalid"]][:8]))
-    recon = [a for a in attackers if per_ip[a["ip"]]["recon"]]
+        first_try = {}                      # uma ocorrência por conta testada
+        for e in failed:
+            if e["ip"] in spray:
+                first_try.setdefault((e["ip"], e["user"]), e)
+        findings.append(finding("ssh_spraying", [occurrence(e) for e in first_try.values()]))
+    recon = [a["ip"] for a in attackers if per_ip[a["ip"]]["recon"]]
     if recon:
-        findings.append(finding("ssh_scan", [a["ip"] for a in recon],
-                                sum(len(per_ip[a["ip"]]["recon"]) for a in recon),
-                                [r["n"] for a in recon for r in per_ip[a["ip"]]["recon"]]))
+        findings.append(finding("ssh_scan", [(ip, r["n"], r["time"]) for ip in recon for r in per_ip[ip]["recon"]]))
 
     # Veredito
     groups = group_alerts_by_ip(alerts)
@@ -603,31 +603,26 @@ def analyze_web_lines(lines: list[str], threshold: int = DEFAULT_THRESHOLD) -> d
 
     # Como corrigir
     findings = []
+    occurrence = lambda e: (e["ip"], e["n"], e["time"])  # noqa: E731
     if exposed:
-        findings.append(finding("web_sensitive_exposed", sorted({e["ip"] for e in exposed}), len(exposed),
-                                [e["n"] for e in exposed]))
+        findings.append(finding("web_sensitive_exposed", [occurrence(e) for e in exposed]))
     if login_alerts:
-        findings.append(finding("web_login_compromise", list(alerts_by_ip), len(login_alerts),
-                                [a["n"] for a in login_alerts]))
+        findings.append(finding("web_login_compromise", [(a["ip"], a["n"], a["time"]) for a in login_alerts]))
     for kind, key in (("rce", "web_rce"), ("sqli", "web_sqli"), ("traversal", "web_traversal"), ("xss", "web_xss")):
-        hits = [e for e in events if e["attack"] == kind]
+        hits = [occurrence(e) for e in events if e["attack"] == kind]
         if hits:
-            findings.append(finding(key, sorted({e["ip"] for e in hits}), len(hits), [e["n"] for e in hits]))
+            findings.append(finding(key, hits))
     login_fail = Counter(e["ip"] for e in events if e["login"] == "fail")
     brute = [ip for ip, n in login_fail.items() if n >= threshold]
     if brute:
-        findings.append(finding("web_login_bruteforce", brute, sum(login_fail[ip] for ip in brute),
-                                [e["n"] for e in events if e["login"] == "fail" and e["ip"] in brute]))
-    probes = [e for e in events if e["attack"] == "sensitive" and not web.is_exposed(e)]
+        findings.append(finding("web_login_bruteforce",
+                                [occurrence(e) for e in events if e["login"] == "fail" and e["ip"] in brute]))
+    probes = [occurrence(e) for e in events if e["attack"] == "sensitive" and not web.is_exposed(e)]
     if probes and not exposed:
-        findings.append(finding("web_sensitive_probe", sorted({e["ip"] for e in probes}), len(probes),
-                                [e["n"] for e in probes]))
-    scanners = [a for a in attackers if any(t["id"] in ("T1595.002", "T1595.003") for t in a["techniques"])]
+        findings.append(finding("web_sensitive_probe", probes))
+    scanners = {a["ip"] for a in attackers if any(t["id"] in ("T1595.002", "T1595.003") for t in a["techniques"])}
     if scanners:
-        findings.append(finding("web_scanning", [a["ip"] for a in scanners],
-                                sum(1 for e in events if e["ip"] in {a["ip"] for a in scanners}),
-                                [t_ev for a in scanners for t in a["techniques"]
-                                 if t["id"].startswith("T1595") for t_ev in t["evidence"][:3]]))
+        findings.append(finding("web_scanning", [occurrence(e) for e in events if e["ip"] in scanners]))
 
     # Veredito
     critical_lines = {e["n"] for e in exposed} | {a["n"] for a in login_alerts}

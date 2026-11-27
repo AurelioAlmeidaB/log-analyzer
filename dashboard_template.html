@@ -202,6 +202,11 @@ tbody tr:hover { background: var(--surface-2); }
   background: var(--surface-2); border: 1px solid var(--border); color: var(--link);
 }
 .mitre { font-family: var(--mono); font-size: 12px; }
+.triage { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--surface-2); color: var(--ink); text-decoration: none; display: inline-flex; gap: 5px; align-items: center; margin-right: 6px; }
+.triage::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--muted); }
+.triage.novo::before { background: var(--series-1); }
+.triage.em_analise::before { background: var(--warning); }
+.triage.resolvido::before { background: var(--good); }
 .fix { padding: 16px 0; border-top: 1px solid var(--grid); }
 .fix:first-child { border-top: 0; padding-top: 0; }
 .fix ol { margin: 10px 0 0; padding-left: 20px; color: var(--ink); }
@@ -433,6 +438,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
   // ---------- Cabeçalho ----------
   if (D.nav) {
     $("#nav").append(h("a", { class: "back", href: D.nav.href }, "← " + D.nav.label));
+    if (D.nav.alerts) $("#nav").append(" ", h("a", { class: "back", href: D.nav.alerts }, "Fila de alertas"));
     if (D.nav.refresh) {
       $("#theme").before(h("button", { type: "button", "data-tip": "Recarrega com os logs que chegaram desde " + D.generated,
         onclick: () => location.reload() }, "Atualizar"));
@@ -531,6 +537,11 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     });
     return btn;
   }
+  // Na aplicação web, cada (ataque, IP) é um alerta de triagem: mostra o status e leva até ele.
+  const triageTag = (type, ip) => {
+    const t = D.triage && D.triage[type + "|" + ip];
+    return t ? h("a", { class: "triage " + t.status, href: t.href, "data-tip": "Abrir o alerta na triagem" }, t.label) : null;
+  };
   if (!D.findings.length) {
     $("#fixes").append(h("p", { class: "muted" }, "Nada para corrigir: nenhum ataque encontrado neste log."));
   }
@@ -542,7 +553,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
       h("p", { class: "sub", style: "margin-top:4px" }, f.why),
       h("ol", null, f.steps.map((s) => h("li", null, s))),
       code ? h("div", { class: "code" }, h("pre", null, code), copyButton(code)) : null,
-      h("div", { class: "evidence" }, "IPs:", ...f.ips.slice(0, 6).map(ipButton),
+      h("div", { class: "evidence" }, "IPs:", ...f.ips.slice(0, 6).flatMap((ip) => [ipButton(ip), triageTag(f.type, ip)]),
         f.ips.length > 6 ? " +" + (f.ips.length - 6) : null),
       f.evidence.length ? h("div", { class: "evidence" }, "Evidência:", ...f.evidence.map(lineLink)) : null
     );
@@ -695,6 +706,8 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     }, 250);
   }
   renderLog();
+  const linkedLine = location.hash.match(/^#L(\d+)$/);   // painel#L41 abre na linha 41
+  if (linkedLine) jumpTo(Number(linkedLine[1]));
 
   // ---------- Tooltip ----------
   const tip = $("#tip");

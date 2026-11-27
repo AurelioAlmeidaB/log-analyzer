@@ -35,6 +35,7 @@ ROLE_LABELS = {"admin": "Administrador", "analyst": "Analista SOC"}
 PERMISSIONS = {
     "view": "analyst",          # ver aplicações, painéis e linhas de log
     "export": "analyst",        # baixar o relatório em JSON
+    "triage": "analyst",        # assumir alertas, mudar o status, escrever notas
     "upload": "admin",          # enviar arquivo de log
     "manage_apps": "admin",     # criar e excluir aplicações, trocar chave, apagar logs
     "manage_team": "admin",     # convidar, mudar papéis, remover membros, renomear a organização

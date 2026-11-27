@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Alertas{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Alertas</h1>
+    <p class="sub">Cada alerta é um tipo de ataque vindo de um IP. Assuma, investigue e feche com uma nota.</p>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Filas">
+  {% for key, label in queues.items() %}
+  <a href="{{ url_for('alerts.index', fila=key, gravidade=severity or None, app=app_id, meus='1' if mine else None) }}"
+     {% if key == queue %}aria-current="page"{% endif %}>{{ label }} <span class="count-muted">{{ tab_counts[key] }}</span></a>
+  {% endfor %}
+</nav>
+
+<form method="get" action="{{ url_for('alerts.index') }}" class="filters-bar">
+  <input type="hidden" name="fila" value="{{ queue }}">
+  <label class="visually-hidden" for="f-sev">Gravidade</label>
+  <select id="f-sev" name="gravidade" data-autosubmit>
+    <option value="">Todas as gravidades</option>
+    {% for key, label in severities.items() %}<option value="{{ key }}" {% if key == severity %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="f-app">Aplicação</label>
+  <select id="f-app" name="app" data-autosubmit>
+    <option value="">Todas as aplicações</option>
+    {% for a in apps %}<option value="{{ a.id }}" {% if a.id == app_id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+  </select>
+  <label class="check"><input type="checkbox" name="meus" value="1" {% if mine %}checked{% endif %} data-autosubmit> Só os meus</label>
+  <noscript><button class="btn small" type="submit">Filtrar</button></noscript>
+</form>
+
+<section class="card">
+  {% if alerts %}
+  <div class="table-wrap">
+    <table class="queue">
+      <thead><tr><th>Gravidade</th><th>Alerta</th><th>Aplicação</th><th class="num">Ocorrências</th><th>Status</th><th>Responsável</th><th>Última ocorrência</th></tr></thead>
+      <tbody>
+      {% for a in alerts %}
+        <tr>
+          <td><span class="badge {{ a.severity }}">{{ severities[a.severity] }}</span></td>
+          <td><a href="{{ url_for('alerts.detail', alert_id=a.id) }}">{{ a.title }}</a><div class="mono muted small">{{ a.ip }}</div></td>
+          <td>{{ a.app_name }}</td>
+          <td class="num">{{ a.occurrences }}</td>
+          <td><span class="status {{ a.status }}">{{ status_labels[a.status] }}</span></td>
+          <td>{{ a.assignee_email or "—" }}</td>
+          <td class="nowrap">{{ a.updated_at|ago }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    {% if queue == 'abertos' and not mine and not severity and not app_id %}
+      <h2>Nenhum alerta aberto</h2>
+      <p>Quando um ataque aparecer nos logs de uma aplicação, ele entra aqui como "Novo".</p>
+    {% else %}
+      <h2>Nada nesta fila</h2>
+      <p>Mude a fila ou os filtros acima.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

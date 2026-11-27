@@ -59,13 +59,14 @@ def create_app(config: dict | None = None) -> Flask:
 
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-    from . import auth, db, monitor, security, team
+    from . import alerts, auth, db, monitor, security, team
 
     db.init_app(app)
     security.init_app(app)
     app.register_blueprint(auth.bp)
     app.register_blueprint(monitor.bp)
     app.register_blueprint(team.bp)
+    app.register_blueprint(alerts.bp)
     app.jinja_env.filters["ago"] = monitor.time_ago
     app.jinja_env.filters["ago_epoch"] = monitor.epoch_ago
 

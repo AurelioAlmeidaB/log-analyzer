@@ -203,9 +203,26 @@ REMEDIATION = {
 }
 
 
-def finding(kind: str, ips: list[str], count: int, evidence: list[int]) -> dict:
-    """Junta a recomendação com o que foi encontrado no log."""
+def finding(kind: str, occurrences: list[tuple], extra: list[tuple] = ()) -> dict:
+    """Junta a recomendação com o que foi encontrado no log.
+
+    occurrences: (ip, linha, horário) de cada vez que o ataque aconteceu, na ordem do log.
+    extra: (ip, linha) que servem de evidência sem ser ocorrência nova (ex.: a sessão aberta depois).
+    O resultado traz o total e o detalhe por IP, usado na triagem de alertas.
+    """
     info = REMEDIATION[kind]
+    per_ip = {}
+    for ip, line, when in occurrences:
+        p = per_ip.setdefault(ip, {"count": 0, "lines": [], "first_time": when, "last_time": when, "last_line": line})
+        p["count"] += 1
+        p["last_time"] = when
+        p["last_line"] = max(p["last_line"], line)
+        if len(p["lines"]) < 8:
+            p["lines"].append(line)
+    for ip, line in extra:
+        if ip in per_ip and line not in per_ip[ip]["lines"]:
+            per_ip[ip]["lines"].append(line)
+    evidence = {n for p in per_ip.values() for n in p["lines"][:2]} | {line for _, line in extra}
     return {
         "type": kind,
         "title": info["title"],
@@ -213,9 +230,10 @@ def finding(kind: str, ips: list[str], count: int, evidence: list[int]) -> dict:
         "why": info["why"],
         "steps": info["steps"],
         "commands": info["commands"],
-        "ips": ips,
-        "count": count,
-        "evidence": sorted(set(evidence))[:8],
+        "ips": list(per_ip),
+        "count": len(occurrences),
+        "evidence": sorted(evidence)[:8],
+        "per_ip": per_ip,
     }
 
 

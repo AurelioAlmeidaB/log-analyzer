@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Alerta #{{ alert.id }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="muted"><a href="{{ url_for('alerts.index') }}">Alertas</a> / #{{ alert.id }}</p>
+    <h1>{{ alert.title }}</h1>
+    <p class="sub"><span class="mono">{{ alert.ip }}</span> em <a href="{{ url_for('monitor.detail', app_id=alert.app_id) }}">{{ alert.app_name }}</a></p>
+  </div>
+  <a class="btn" href="{{ url_for('monitor.dashboard', app_id=alert.app_id) }}">Abrir painel</a>
+</div>
+
+<section class="card">
+  <div class="actions">
+    <span class="badge {{ alert.severity }}">{{ severities[alert.severity] }}</span>
+    <span class="status {{ alert.status }}">{{ status_labels[alert.status] }}</span>
+  </div>
+  <dl class="facts field">
+    <dt>Responsável</dt><dd>{{ alert.assignee_email or "ninguém" }}{% if alert.assignee_id == g.user.id %} (você){% endif %}</dd>
+    <dt>Ocorrências</dt><dd>{{ alert.occurrences }}</dd>
+    <dt>No log</dt><dd>{{ alert.first_time }}{% if alert.last_time != alert.first_time %} → {{ alert.last_time }}{% endif %}</dd>
+    <dt>Última ocorrência nova</dt><dd>{{ alert.updated_at|ago }}</dd>
+  </dl>
+  {% if can_triage %}
+  <div class="actions field">
+    {% if alert.assignee_id != g.user.id %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn primary" type="submit" name="action" value="assumir">{{ "Assumir e começar análise" if alert.status == 'novo' else "Assumir" }}</button>
+    </form>
+    {% else %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit" name="action" value="liberar">Deixar sem responsável</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<div class="two">
+  {% if can_triage %}
+  <section class="card">
+    <h2>Atualizar</h2>
+    <form method="post" class="stack field">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="atualizar">
+      <fieldset class="plain">
+        <legend><strong>Status</strong></legend>
+        <div class="radio-cards field">
+          {% for key, label in status_labels.items() %}
+          <label><input type="radio" name="status" value="{{ key }}" {% if key == alert.status %}checked{% endif %} {% if key in note_required %}data-requires-note{% endif %}>
+            <span><strong>{{ label }}</strong>
+              <span class="muted">{{ {'novo': 'ainda ninguém olhou', 'em_analise': 'alguém está investigando', 'resolvido': 'tratado; reabre se o ataque voltar', 'falso_positivo': 'não era ataque; continua fechado'}[key] }}</span></span></label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div>
+        <label for="note">Nota</label>
+        <textarea id="note" name="note" rows="4" maxlength="2000" aria-describedby="note-hint"></textarea>
+        <p class="hint" id="note-hint">Obrigatória para Resolvido e Falso positivo: o que você viu e o que foi feito. Sem mudar o status, a nota entra só no histórico.</p>
+      </div>
+      <button class="btn primary" type="submit">Salvar</button>
+    </form>
+  </section>
+  {% endif %}
+  <section class="card">
+    <h2>Evidência</h2>
+    <p class="sub field">Linhas do log que geraram o alerta.</p>
+    <ol class="evidence-list field">
+      {% for e in evidence %}
+        {% if e %}
+        <li><a class="mono" href="{{ url_for('monitor.dashboard', app_id=alert.app_id) }}#L{{ e.n }}">L{{ e.n }}</a>
+            <code>{{ e.text }}</code></li>
+        {% else %}
+        <li class="muted">linha que não está mais guardada</li>
+        {% endif %}
+      {% endfor %}
+    </ol>
+  </section>
+</div>
+
+{% if fix %}
+<section class="card mt">
+  <h2>Como corrigir</h2>
+  <p class="sub field">{{ fix.why }}</p>
+  <ol class="how field">{% for step in fix.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+  {% if fix.commands %}
+  <div class="copy field"><pre id="fix-cmd">{{ fix.commands|join("\n") }}</pre><button class="btn small" type="button" data-copy="fix-cmd">Copiar</button></div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card mt">
+  <h2>Histórico</h2>
+  <ol class="timeline field">
+    {% for h in history %}
+    <li>
+      <div class="when muted small">{{ h.at|ago }} · {{ h.email or "sistema" }}</div>
+      <div>
+        {% if h.kind == 'status' %}mudou de <span class="status {{ h.from_status }}">{{ status_labels[h.from_status] }}</span> para <span class="status {{ h.to_status }}">{{ status_labels[h.to_status] }}</span>
+        {% elif h.kind == 'criado' %}alerta criado
+        {% elif h.kind == 'reaberto' %}<strong>reaberto</strong>
+        {% elif h.kind == 'atribuido' %}assumiu o alerta
+        {% elif h.kind == 'liberado' %}deixou o alerta sem responsável
+        {% else %}nota{% endif %}
+      </div>
+      {% if h.note %}<p class="note">{{ h.note }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

@@ -120,6 +120,7 @@ Cada conta nasce com a sua organização. As aplicações pertencem à organiza�
 |---|:---:|:---:|
 | Ver aplicações, painéis e logs | ✓ | ✓ |
 | Baixar o relatório em JSON | ✓ | ✓ |
+| Triar alertas: assumir, mudar status, escrever notas | ✓ | ✓ |
 | Enviar arquivo de log | ✓ | |
 | Criar e excluir aplicações, ver e trocar chaves, apagar logs | ✓ | |
 | Convidar pessoas, mudar papéis, remover membros | ✓ | |
@@ -129,6 +130,20 @@ Cada conta nasce com a sua organização. As aplicações pertencem à organiza�
 - Mudar o papel ou remover alguém vale **na hora**, sem esperar a pessoa sair.
 - A organização sempre tem pelo menos um administrador.
 - Quem participa de mais de uma organização troca entre elas no topo da página.
+
+### Triagem de alertas (o trabalho do analista SOC)
+
+Cada tipo de ataque vindo de um IP vira um **alerta**, como "Brute force no SSH, 203.0.113.5". A página **Alertas** é a fila de trabalho:
+
+1. **Novo**: o alerta acabou de aparecer; o menu mostra quantos há.
+2. **Em análise**: alguém clicou em *Assumir* e virou o responsável.
+3. **Resolvido** ou **Falso positivo**: fechar exige uma nota dizendo o que foi visto e feito.
+
+- Cada alerta mostra as linhas do log que servem de evidência (com link para a linha no painel), o passo a passo de como corrigir e o histórico completo: quem assumiu, quem mudou o status e as notas.
+- **Reabre sozinho:** um alerta resolvido volta para *Novo* se o ataque acontecer de novo depois da decisão. Um falso positivo continua fechado.
+- Filas por status, filtros por gravidade e aplicação, e "só os meus".
+- No painel de ataques, cada IP mostra o status da triagem e leva ao alerta.
+- Reenviar o mesmo arquivo de log não duplica linhas nem reabre alertas.
 
 ### Monitorar uma aplicação
 
@@ -201,7 +216,7 @@ python -m unittest -v                  # analisador, agente e 2FA (sem dependên
 .venv/bin/python -m unittest -v        # inclui os testes da aplicação web
 ```
 
-137 testes, entre eles:
+158 testes, entre eles:
 
 - `test_order_matters` e `test_counter_resets_after_success`: a ordem do log e o contador que zera
 - `test_legit_user_is_not_flagged_after_many_days`: a usuária que erra a senha não vira atacante num log longo
@@ -209,6 +224,7 @@ python -m unittest -v                  # analisador, agente e 2FA (sem dependên
 - `TestTenantIsolation`: alguém de outra organização recebe 404 em todas as páginas e ações
 - `TestRoles`: o analista SOC vê e exporta, mas recebe 403 em tudo que muda algo; mudança de papel vale na hora
 - `TestSessions`: cookie copiado não vale depois de sair; trocar a senha derruba os outros navegadores
+- `test_resolved_alert_reopens_when_attack_returns` e `test_false_positive_stays_closed`: o ciclo de vida da triagem
 - `test_regexes_resist_redos`: linhas hostis de 64 KB são analisadas em menos de 0,5 s
 - `test_html_escapes_attacker_controlled_text`: um usuário chamado `</script><script>...` no log não executa código no painel
 
@@ -248,6 +264,8 @@ agent.py                 agente que envia o log para a aplicação web
 webapp/                  aplicação web (Flask + SQLite)
   auth.py                contas, 2FA, códigos de recuperação, sessões
   team.py                organizações, convites, papéis, registro de atividade
+  alerts.py              triagem: fila de alertas, status, responsável, notas e histórico
+  analysis.py            análise das linhas guardadas, resumo e sincronização dos alertas
   monitor.py             aplicações, upload, API do agente, painel e relatório
   security.py            CSRF, CSP, limites de tentativa, sessões, permissões
   db.py                  esquema e migrações
@@ -259,7 +277,7 @@ tests/                   testes (unittest)
 - Falhas em janela de tempo (5 falhas em 1 minuto é mais grave que 5 em um dia)
 - Alertas por e-mail ou Telegram quando aparecer um ataque crítico
 - Recuperação de senha por e-mail, verificação do e-mail no cadastro e convite enviado por e-mail
-- Triagem de alertas pelo analista SOC (novo, em análise, resolvido, falso positivo)
+- Comentários com menção (@pessoa) e prazo (SLA) por gravidade na triagem
 - Análise em segundo plano para logs grandes (hoje o painel refaz a análise a cada abertura)
 - Passkeys (WebAuthn) como alternativa ao código de 6 dígitos
 - Mandar só o resumo agregado (não o log cru) para um LLM explicar o incidente em português

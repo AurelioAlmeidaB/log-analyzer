@@ -30,6 +30,7 @@
     </div>
     <nav class="nav" aria-label="Principal">
       <a href="{{ url_for('monitor.index') }}" {% if request.blueprint == 'monitor' %}aria-current="page"{% endif %}>Aplicações</a>
+      <a href="{{ url_for('alerts.index') }}" {% if request.blueprint == 'alerts' %}aria-current="page"{% endif %}>Alertas{% if new_alerts %} <span class="count" title="{{ new_alerts }} alertas novos">{{ new_alerts }}</span>{% endif %}</a>
       {% if can('manage_team') %}<a href="{{ url_for('team.index') }}" {% if request.endpoint == 'team.index' %}aria-current="page"{% endif %}>Equipe</a>{% endif %}
       {% if can('view_audit') %}<a href="{{ url_for('team.activity') }}" {% if request.endpoint == 'team.activity' %}aria-current="page"{% endif %}>Atividade</a>{% endif %}
       <a href="{{ url_for('auth.account') }}" {% if request.endpoint == 'auth.account' %}aria-current="page"{% endif %}>Conta</a>

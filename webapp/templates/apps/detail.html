@@ -32,6 +32,23 @@
 <section class="card empty"><h2>Ainda sem logs</h2><p>Quando o agente ou um administrador enviar logs, o painel aparece aqui.</p></section>
 {% endif %}
 
+{% if open_alerts %}
+<section class="card mt">
+  <div class="section-head">
+    <h2>Alertas abertos</h2>
+    <a class="btn small" href="{{ url_for('alerts.index', app=app.id) }}">Ver todos os alertas</a>
+  </div>
+  <ul class="alert-list field">
+    {% for a in open_alerts %}
+    <li><a href="{{ url_for('alerts.detail', alert_id=a.id) }}">
+      <span class="badge {{ a.severity }}">{{ risk[a.severity] }}</span>
+      <span class="alert-title">{{ a.title }} <span class="mono muted">{{ a.ip }}</span></span>
+      <span class="status {{ a.status }}">{{ status_labels[a.status] }}</span></a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {% if can('upload', app.my_role) %}
 <div class="two">
   <section class="card stack">

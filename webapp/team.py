@@ -35,6 +35,10 @@ AUDIT_LABELS = {
     "membro_removido": "removeu",
     "membro_saiu": "saiu da organização",
     "organizacao_renomeada": "renomeou a organização para",
+    "alerta_assumido": "assumiu o alerta",
+    "alerta_liberado": "deixou sem responsável o alerta",
+    "alerta_status": "mudou o status do alerta",
+    "alerta_nota": "escreveu uma nota no alerta",
 }
 
 

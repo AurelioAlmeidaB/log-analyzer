@@ -129,6 +129,45 @@ MIGRATIONS = {
     INSERT INTO memberships (org_id, user_id, role) SELECT id, id, 'admin' FROM users;
     UPDATE apps SET org_id = user_id;
     """,
+    # Versão 3: triagem de alertas. Um alerta é um tipo de ataque vindo de um IP
+    # numa aplicação; o analista SOC assume, investiga e fecha com uma nota.
+    3: """
+    CREATE TABLE alerts (
+        id             INTEGER PRIMARY KEY,
+        app_id         INTEGER NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+        type           TEXT NOT NULL,                -- chave de remediation.REMEDIATION
+        ip             TEXT NOT NULL,
+        severity       TEXT NOT NULL,
+        title          TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'novo'
+                       CHECK (status IN ('novo', 'em_analise', 'resolvido', 'falso_positivo')),
+        assignee_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        occurrences    INTEGER NOT NULL DEFAULT 0,
+        first_time     TEXT,                         -- horários como estão no log
+        last_time      TEXT,
+        last_line_id   INTEGER,                      -- log_lines.id da última ocorrência
+        evidence_ids   TEXT NOT NULL DEFAULT '[]',
+        status_line_id INTEGER,                      -- última ocorrência vista quando o status mudou
+        created_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- última ocorrência nova
+        UNIQUE (app_id, type, ip)
+    );
+    CREATE INDEX idx_alerts_app_status ON alerts(app_id, status);
+
+    CREATE TABLE alert_events (
+        id          INTEGER PRIMARY KEY,
+        alert_id    INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+        user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- NULL: o próprio sistema
+        kind        TEXT NOT NULL,          -- criado, status, nota, atribuido, liberado, reaberto
+        from_status TEXT,
+        to_status   TEXT,
+        note        TEXT NOT NULL DEFAULT '',
+        at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX idx_alert_events_alert ON alert_events(alert_id, id);
+
+    ALTER TABLE apps ADD COLUMN alerts_version INTEGER NOT NULL DEFAULT -1;
+    """,
 }
 
 

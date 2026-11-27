@@ -364,7 +364,7 @@ class TestMigration(unittest.TestCase):
 
         create_app({"TESTING": True, "DATABASE": path, "SECRET_KEY": "x"})
         db = sqlite3.connect(path)
-        self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
         org_id, role = db.execute("SELECT org_id, role FROM memberships WHERE user_id = 7").fetchone()
         self.assertEqual(role, "admin")
         self.assertEqual(db.execute("SELECT org_id FROM apps WHERE name = 'Antiga'").fetchone()[0], org_id)

@@ -10,7 +10,7 @@
   {% if apps and can('manage_apps') %}<a class="btn primary" href="{{ url_for('monitor.new_app') }}">Nova aplicação</a>{% endif %}
 </div>
 {% if not can('manage_apps') %}
-<div class="alert role-note">Você é <strong>{{ ROLE_LABELS[g.role] }}</strong> aqui: pode abrir os painéis, ver os logs e baixar relatórios. Criar aplicações, trocar chaves e convidar pessoas fica com os administradores.</div>
+<div class="alert role-note">Você é <strong>{{ ROLE_LABELS[g.role] }}</strong> aqui: abre os painéis, faz a <a href="{{ url_for('alerts.index') }}">triagem dos alertas</a> e baixa relatórios. Criar aplicações, trocar chaves e convidar pessoas fica com os administradores.</div>
 {% endif %}
 {% if apps %}
 <div class="grid">
