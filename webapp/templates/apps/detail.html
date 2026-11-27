@@ -1,13 +1,19 @@
 {% extends "base.html" %}
 {% block title %}{{ app.name }}{% endblock %}
 {% block content %}
+{% set risk = {'critico': 'Crítico', 'alto': 'Alto', 'medio': 'Médio', 'baixo': 'Baixo'} %}
 <div class="page-head">
   <div>
     <p class="muted"><a href="{{ url_for('monitor.index') }}">Aplicações</a> /</p>
     <h1>{{ app.name }}</h1>
-    <p class="sub">{{ kinds[app.kind] }}</p>
+    <p class="sub">{{ kinds[app.kind] }} · <span class="dot {{ status[0] }}" aria-hidden="true"></span>{{ status[1] }}</p>
   </div>
-  {% if line_count %}<a class="btn primary" href="{{ url_for('monitor.dashboard', app_id=app.id) }}">Abrir painel de ataques</a>{% endif %}
+  <div class="actions">
+    {% if line_count %}
+      <a class="btn" href="{{ url_for('monitor.report', app_id=app.id) }}">Baixar relatório</a>
+      <a class="btn primary" href="{{ url_for('monitor.dashboard', app_id=app.id) }}">Abrir painel de ataques</a>
+    {% endif %}
+  </div>
 </div>
 
 {% if new_key %}
@@ -19,11 +25,14 @@
 
 {% if summary %}
 <section class="card">
-  <div class="actions"><span class="badge {{ summary.level }}">{{ {'critico': 'Crítico', 'alto': 'Alto', 'medio': 'Médio', 'baixo': 'Baixo'}[summary.level] }}</span><h2>{{ summary.title }}</h2></div>
-  {% if summary.findings %}<p class="sub field">Para corrigir: {{ summary.findings|join(" · ") }}</p>{% endif %}
+  <div class="actions"><span class="badge {{ summary.level }}">{{ risk[summary.level] }}</span><h2>{{ summary.title }}</h2></div>
+  {% if summary.findings %}<p class="sub field">Para corrigir: {{ summary.findings|join(" · ") }}. Os passos estão no painel.</p>{% endif %}
 </section>
+{% elif not can('upload', app.my_role) %}
+<section class="card empty"><h2>Ainda sem logs</h2><p>Quando o agente ou um administrador enviar logs, o painel aparece aqui.</p></section>
 {% endif %}
 
+{% if can('upload', app.my_role) %}
 <div class="two">
   <section class="card stack">
     <h2>Enviar um arquivo</h2>
@@ -45,27 +54,30 @@ python3 agent.py --servidor {{ server }} --arquivo {{ log_hint }}</pre><button c
     {% if not server.startswith('https://') %}<p class="hint">Fora da sua máquina, use HTTPS: a chave e os logs viajam nesse endereço.</p>{% endif %}
   </section>
 </div>
+{% endif %}
 
 <section class="card mt">
   <h2>Detalhes</h2>
   <dl class="facts field">
     <dt>Linhas guardadas</dt><dd>{{ line_count }} (as 200 mil mais recentes)</dd>
-    <dt>Último envio</dt><dd>{{ app.last_received_at or "nenhum" }}{% if app.last_received_at %} UTC{% endif %}</dd>
+    <dt>Último envio</dt><dd>{{ app.last_received_at|ago }}</dd>
     <dt>Limite de brute force</dt><dd>{{ app.threshold }} falhas seguidas</dd>
-    <dt>Chave</dt><dd><code>{{ app.api_key_hint }}</code></dd>
+    {% if can('manage_apps', app.my_role) %}<dt>Chave</dt><dd><code>{{ app.api_key_hint }}</code></dd>{% endif %}
+    <dt>Seu papel</dt><dd>{{ ROLE_LABELS[app.my_role] }}</dd>
   </dl>
 </section>
 
+{% if can('manage_apps', app.my_role) %}
 <section class="card mt">
   <details>
     <summary>Chave, limpeza e exclusão</summary>
     <div class="stack">
-      <form method="post" action="{{ url_for('monitor.rotate_key', app_id=app.id) }}" class="actions">
+      <form method="post" action="{{ url_for('monitor.rotate_key', app_id=app.id) }}" class="actions" data-confirm="Gerar nova chave? A atual para de funcionar na hora e o agente precisa ser atualizado.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit">Gerar nova chave</button>
         <span class="muted">A chave atual para de funcionar na hora; atualize o agente.</span>
       </form>
-      <form method="post" action="{{ url_for('monitor.clear_lines', app_id=app.id) }}" class="actions">
+      <form method="post" action="{{ url_for('monitor.clear_lines', app_id=app.id) }}" class="actions" data-confirm="Apagar todas as linhas recebidas de {{ app.name }}? Não dá para desfazer.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit">Apagar as linhas recebidas</button>
         <span class="muted">A aplicação e a chave continuam.</span>
@@ -79,4 +91,5 @@ python3 agent.py --servidor {{ server }} --arquivo {{ log_hint }}</pre><button c
     </div>
   </details>
 </section>
+{% endif %}
 {% endblock %}

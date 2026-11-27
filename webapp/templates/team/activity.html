@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Atividade{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Atividade</h1><p class="sub">Quem fez o quê nesta organização. Só administradores veem esta página.</p></div></div>
+<section class="card">
+  {% if events %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>IP</th></tr></thead>
+      <tbody>
+      {% for e in events %}
+        <tr>
+          <td class="mono nowrap" title="{{ e.at }}">{{ e.at|ago }}</td>
+          <td>{{ e.email or "conta excluída" }}</td>
+          <td>{{ labels.get(e.action, e.action) }} <strong>{{ e.detail }}</strong></td>
+          <td class="mono">{{ e.ip }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Nada registrado ainda.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -59,12 +59,25 @@ def create_app(config: dict | None = None) -> Flask:
 
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-    from . import auth, db, monitor, security
+    from . import auth, db, monitor, security, team
 
     db.init_app(app)
     security.init_app(app)
     app.register_blueprint(auth.bp)
     app.register_blueprint(monitor.bp)
+    app.register_blueprint(team.bp)
+    app.jinja_env.filters["ago"] = monitor.time_ago
+    app.jinja_env.filters["ago_epoch"] = monitor.epoch_ago
+
+    @app.errorhandler(403)
+    def forbidden(_):
+        from flask import g
+
+        role = security.ROLE_LABELS.get(g.get("role"), "")
+        return render_template(
+            "error.html", title="Sem permissão",
+            message=(f"Seu papel nesta organização ({role}) não permite esta ação. "
+                     "Peça a um administrador." if role else "Você não tem permissão para esta ação.")), 403
 
     @app.errorhandler(404)
     def not_found(_):

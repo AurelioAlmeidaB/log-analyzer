@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Criar conta{% endblock %}
 {% block body %}
-<main class="auth">
+<main class="auth" id="conteudo">
   <div class="card">
     <div class="steps" aria-label="Passo 1 de 3"><span class="on"></span><span></span><span></span></div>
     <h1>Criar conta</h1>
@@ -9,13 +9,18 @@
     {% if error %}<div class="alert error field" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="{{ url_for('auth.register') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
       <div class="field">
         <label for="email">E-mail</label>
         <input id="email" name="email" type="email" autocomplete="username" required maxlength="254" value="{{ email }}" autofocus>
+        {% if next and next.startswith('/convite/') %}<p class="hint">Use o mesmo e-mail que recebeu o convite.</p>{% endif %}
       </div>
       <div class="field">
         <label for="password">Senha</label>
-        <input id="password" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" aria-describedby="password-hint">
+        <div class="password">
+          <input id="password" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" aria-describedby="password-hint">
+          <button type="button" class="btn small" data-toggle-password="password" aria-pressed="false">Mostrar</button>
+        </div>
         <p class="hint" id="password-hint">Pelo menos 10 caracteres. Uma frase com espaços é fácil de lembrar e forte.</p>
       </div>
       <div class="field">
@@ -25,6 +30,6 @@
       <button class="btn primary block" type="submit">Criar conta</button>
     </form>
   </div>
-  <p class="foot">Já tem conta? <a href="{{ url_for('auth.login') }}">Entrar</a></p>
+  <p class="foot">Já tem conta? <a href="{{ url_for('auth.login', next=next) if next else url_for('auth.login') }}">Entrar</a></p>
 </main>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Código de verificação{% endblock %}
 {% block body %}
-<main class="auth">
+<main class="auth" id="conteudo">
   <div class="card">
     <h1>Código de verificação</h1>
     <p class="sub">Abra o app autenticador no celular e digite o código do Log Analyzer.</p>
@@ -10,7 +10,8 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
         <label for="code">Código de 6 dígitos</label>
-        <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus>
+        <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus data-autosubmit-code>
+        <p class="hint">O código muda a cada 30 segundos. Ao digitar o sexto número, ele é enviado sozinho.</p>
       </div>
       <button class="btn primary block" type="submit">Entrar</button>
     </form>

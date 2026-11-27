@@ -39,7 +39,14 @@ class TestTotp(unittest.TestCase):
         self.assertEqual(len(set(codes)), 8)
         for code in codes:
             self.assertTrue(totp.looks_like_recovery_code(code))
-            self.assertEqual(totp.hash_recovery_code(code), totp.hash_recovery_code(code.upper().replace("-", " ")))
+            self.assertEqual(totp.hash_recovery_code(code, "k"),
+                             totp.hash_recovery_code(code.upper().replace("-", " "), "k"))
+
+    def test_recovery_hash_depends_on_server_secret(self):
+        # Quem copia só o banco, sem a chave do servidor, não consegue testar códigos offline.
+        code = totp.new_recovery_codes(1)[0]
+        self.assertNotEqual(totp.hash_recovery_code(code, "chave-a"), totp.hash_recovery_code(code, "chave-b"))
+        self.assertNotEqual(totp.hash_recovery_code(code, "chave-a"), totp.legacy_hash_recovery_code(code))
 
     def test_provisioning_uri(self):
         uri = totp.provisioning_uri("ABC", "maria@exemplo.com")

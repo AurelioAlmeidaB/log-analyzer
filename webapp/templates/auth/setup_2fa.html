@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Verificação em duas etapas{% endblock %}
 {% block body %}
-<main class="auth">
+<main class="auth" id="conteudo">
   <div class="card">
-    <div class="steps" aria-label="Passo 2 de 3"><span class="on"></span><span class="on"></span><span></span></div>
-    <h1>Proteja sua conta</h1>
-    <p class="sub">Além da senha, o login vai pedir um código de 6 dígitos do seu celular.</p>
+    {% if not reset %}<div class="steps" aria-label="Passo 2 de 3"><span class="on"></span><span class="on"></span><span></span></div>{% endif %}
+    <h1>{{ "Trocar o app autenticador" if reset else "Proteja sua conta" }}</h1>
+    <p class="sub">{{ "O app antigo para de funcionar quando você confirmar o novo." if reset else "Além da senha, o login vai pedir um código de 6 dígitos do seu celular." }}</p>
     <ol class="how">
       <li>Abra um app autenticador: Google Authenticator, Microsoft Authenticator, Authy, 1Password ou Bitwarden.</li>
       <li>{% if qr %}Escaneie o QR code abaixo.{% else %}Adicione uma conta digitando a chave abaixo.{% endif %}</li>
@@ -21,14 +21,15 @@
     <p class="secret field">{{ secret }}</p>
     {% endif %}
     {% if error %}<div class="alert error field" role="alert">{{ error }}</div>{% endif %}
-    <form method="post" action="{{ url_for('auth.setup_2fa') }}">
+    <form method="post" action="{{ action }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
         <label for="code">Código de 6 dígitos</label>
-        <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus>
+        <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus data-autosubmit-code>
       </div>
-      <button class="btn primary block" type="submit">Ativar</button>
+      <button class="btn primary block" type="submit">{{ "Confirmar o app novo" if reset else "Ativar" }}</button>
     </form>
   </div>
+  {% if reset %}<p class="foot"><a href="{{ url_for('auth.account') }}">Cancelar</a></p>{% endif %}
 </main>
 {% endblock %}

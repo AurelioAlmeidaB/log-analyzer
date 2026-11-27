@@ -112,6 +112,24 @@ Abra http://127.0.0.1:5000, crie a conta e siga os passos.
 3. **8 códigos de recuperação** para quem perder o celular, cada um vale uma vez.
 4. Nos próximos acessos: e-mail e senha, depois o código de 6 dígitos.
 
+### Equipes e papéis
+
+Cada conta nasce com a sua organização. As aplicações pertencem à organização, e quem é de outra organização não vê nem descobre que elas existem (a resposta é 404).
+
+| Ação | Administrador | Analista SOC |
+|---|:---:|:---:|
+| Ver aplicações, painéis e logs | ✓ | ✓ |
+| Baixar o relatório em JSON | ✓ | ✓ |
+| Enviar arquivo de log | ✓ | |
+| Criar e excluir aplicações, ver e trocar chaves, apagar logs | ✓ | |
+| Convidar pessoas, mudar papéis, remover membros | ✓ | |
+| Ver o registro de atividade (quem fez o quê) | ✓ | |
+
+- O administrador convida pelo e-mail e recebe um **link de uso único**, válido por 7 dias e só para aquele e-mail.
+- Mudar o papel ou remover alguém vale **na hora**, sem esperar a pessoa sair.
+- A organização sempre tem pelo menos um administrador.
+- Quem participa de mais de uma organização troca entre elas no topo da página.
+
 ### Monitorar uma aplicação
 
 1. Em **Nova aplicação**, escolha *Servidor Linux (SSH)* ou *Site ou API (nginx/Apache)*.
@@ -132,16 +150,37 @@ O agente usa só a biblioteca padrão, envia as linhas novas a cada 5 segundos, 
 | Proteção | Como |
 |---|---|
 | Senhas | hash scrypt (Werkzeug); nunca guardadas em texto |
-| 2FA | TOTP (RFC 6238) com janela de ±30 s; o mesmo código não serve duas vezes |
+| 2FA | TOTP (RFC 6238) com janela de ±30 s; o mesmo código não serve duas vezes; trocar de celular pede a senha |
+| Códigos de recuperação | uso único, guardados com HMAC e a chave do servidor: quem copia só o banco não consegue testá-los |
 | Brute force no próprio login | 5 senhas erradas por conta ou 20 por IP em 15 min bloqueiam; o mesmo para o código 2FA |
-| Enumeração de contas | mesma mensagem e mesmo tempo de resposta para e-mail inexistente e senha errada |
-| Sessão | cookie HttpOnly, SameSite=Lax, Secure com HTTPS; sessão nova a cada login; expira em 8 h |
+| Enumeração de contas | mesma mensagem e mesmo tempo de resposta no login; o cadastro tem limite de tentativas por IP |
+| Sessões | guardadas no servidor: sair, trocar a senha ou "encerrar as outras" revoga de verdade; terminam após 2 h sem uso ou 12 h no total; lista de sessões abertas na conta |
+| Cookie | HttpOnly, SameSite=Lax, Secure com HTTPS; sessão nova a cada login |
 | CSRF | token em todo formulário |
 | XSS | escape automático nos templates; CSP com nonce, sem `unsafe-inline`; o texto do log nunca vira HTML |
 | Clickjacking e outros | `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, HSTS com HTTPS |
-| Acesso entre contas | toda consulta filtra pelo dono; aplicação de outra pessoa responde 404 |
-| Chaves de API | geradas com `secrets`, guardadas só como hash SHA-256, mostradas uma vez, podem ser trocadas |
-| Redirecionamento aberto | `?next=` só aceita caminhos do próprio site |
+| Isolamento entre organizações | toda consulta junta a aplicação com a participação da pessoa; papel conferido no servidor em cada ação |
+| Chaves de API e convites | gerados com `secrets`, guardados só como hash, mostrados uma vez |
+| Redirecionamento aberto | `?next=` só aceita caminhos do próprio site, inclusive contra `/\site.com` |
+| Arquivo do banco | permissão 600: outros usuários da máquina não leem |
+| ReDoS | nenhuma regex tem repetição ambígua; linhas de 64 KB são analisadas em milissegundos |
+| Agente | não segue redirecionamentos, para não entregar a chave a outro servidor |
+
+### Revisão de segurança
+
+Falhas encontradas testando a própria aplicação, todas corrigidas e com teste em `tests/test_security.py`:
+
+| Gravidade | Falha | Correção |
+|---|---|---|
+| Alta | ReDoS: uma requisição com `union/**/ /**/ ...` no endereço travava a análise por mais de 10 s | padrão de comentário SQL sem ambiguidade |
+| Alta | o agente repassava a chave de API ao seguir um redirecionamento 301/302/303 para outro servidor | o agente recusa redirecionamentos |
+| Média | sair da conta não invalidava o cookie: uma cópia dele continuava valendo por 8 h | sessões guardadas e revogadas no servidor |
+| Média | trocar a senha não derrubava sessões abertas em outros navegadores | troca de senha encerra todas as outras |
+| Média | `?next=/\site.com` redirecionava para outro site depois do login | validação recusa barra invertida |
+| Média | o limite do cadastro só contava cadastros que deram certo, permitindo testar e-mails sem limite | toda tentativa conta |
+| Média | códigos de recuperação com SHA-256 puro (~49 bits) podiam ser quebrados a partir de uma cópia do banco | HMAC com a chave do servidor |
+| Baixa | banco criado com permissão 644 (legível por outros usuários da máquina) | permissão 600 |
+| Baixa | regex do banner SSH com custo quadrático | padrão linear |
 
 ### Colocar no ar
 
@@ -162,12 +201,15 @@ python -m unittest -v                  # analisador, agente e 2FA (sem dependên
 .venv/bin/python -m unittest -v        # inclui os testes da aplicação web
 ```
 
-99 testes, entre eles:
+137 testes, entre eles:
 
 - `test_order_matters` e `test_counter_resets_after_success`: a ordem do log e o contador que zera
 - `test_legit_user_is_not_flagged_after_many_days`: a usuária que erra a senha não vira atacante num log longo
 - `test_rfc6238_vectors`: o 2FA bate com os vetores oficiais do RFC 6238
-- `test_totp_code_cannot_be_reused`, `test_brute_force_on_login_is_blocked`, `test_other_user_cannot_see_app`
+- `TestTenantIsolation`: alguém de outra organização recebe 404 em todas as páginas e ações
+- `TestRoles`: o analista SOC vê e exporta, mas recebe 403 em tudo que muda algo; mudança de papel vale na hora
+- `TestSessions`: cookie copiado não vale depois de sair; trocar a senha derruba os outros navegadores
+- `test_regexes_resist_redos`: linhas hostis de 64 KB são analisadas em menos de 0,5 s
 - `test_html_escapes_attacker_controlled_text`: um usuário chamado `</script><script>...` no log não executa código no painel
 
 ## Logs de exemplo
@@ -203,7 +245,12 @@ remediation.py           como corrigir cada tipo de ataque
 dashboard.py             monta os dados do painel (SSH e web) e gera o HTML
 dashboard_template.html  o painel: HTML/CSS/JS sem dependências
 agent.py                 agente que envia o log para a aplicação web
-webapp/                  aplicação web (Flask + SQLite): contas, 2FA, aplicações, API
+webapp/                  aplicação web (Flask + SQLite)
+  auth.py                contas, 2FA, códigos de recuperação, sessões
+  team.py                organizações, convites, papéis, registro de atividade
+  monitor.py             aplicações, upload, API do agente, painel e relatório
+  security.py            CSRF, CSP, limites de tentativa, sessões, permissões
+  db.py                  esquema e migrações
 tests/                   testes (unittest)
 ```
 
@@ -211,7 +258,9 @@ tests/                   testes (unittest)
 
 - Falhas em janela de tempo (5 falhas em 1 minuto é mais grave que 5 em um dia)
 - Alertas por e-mail ou Telegram quando aparecer um ataque crítico
-- Recuperação de senha por e-mail e verificação do e-mail no cadastro
+- Recuperação de senha por e-mail, verificação do e-mail no cadastro e convite enviado por e-mail
+- Triagem de alertas pelo analista SOC (novo, em análise, resolvido, falso positivo)
+- Análise em segundo plano para logs grandes (hoje o painel refaz a análise a cada abertura)
 - Passkeys (WebAuthn) como alternativa ao código de 6 dígitos
 - Mandar só o resumo agregado (não o log cru) para um LLM explicar o incidente em português
 

@@ -8,12 +8,30 @@
 <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 <body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="{{ url_for('monitor.index') }}"><span class="brand-mark" aria-hidden="true">LA</span> Log Analyzer</a>
-    {% if g.user %}
+    {% if g.user and g.org %}
+    <div class="org">
+      {% if g.orgs|length > 1 %}
+      <form method="post" action="{{ url_for('team.switch') }}" class="org-switch">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="org-select">Organização</label>
+        <select id="org-select" name="org_id" data-autosubmit>
+          {% for o in g.orgs %}<option value="{{ o.id }}" {% if o.id == g.org.id %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn small" type="submit">Trocar</button></noscript>
+      </form>
+      {% else %}
+      <span class="org-name">{{ g.org.name }}</span>
+      {% endif %}
+      <span class="role-chip" title="Seu papel nesta organização">{{ ROLE_LABELS[g.role] }}</span>
+    </div>
     <nav class="nav" aria-label="Principal">
       <a href="{{ url_for('monitor.index') }}" {% if request.blueprint == 'monitor' %}aria-current="page"{% endif %}>Aplicações</a>
+      {% if can('manage_team') %}<a href="{{ url_for('team.index') }}" {% if request.endpoint == 'team.index' %}aria-current="page"{% endif %}>Equipe</a>{% endif %}
+      {% if can('view_audit') %}<a href="{{ url_for('team.activity') }}" {% if request.endpoint == 'team.activity' %}aria-current="page"{% endif %}>Atividade</a>{% endif %}
       <a href="{{ url_for('auth.account') }}" {% if request.endpoint == 'auth.account' %}aria-current="page"{% endif %}>Conta</a>
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -24,7 +42,7 @@
   </div>
 </header>
 {% block body %}
-<main class="page">
+<main class="page" id="conteudo">
   {% include "_messages.html" %}
   {% block content %}{% endblock %}
 </main>

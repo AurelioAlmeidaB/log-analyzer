@@ -165,3 +165,43 @@ details[open] summary { margin-bottom: 12px; }
   dl.facts { grid-template-columns: 1fr; gap: 2px; }
   dl.facts dd { margin-bottom: 8px; }
 }
+
+/* --- Equipe, papéis e usabilidade --- */
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 10; background: var(--surface); padding: 8px 12px; border-radius: 8px; }
+.skip:focus { left: 8px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.small { font-size: 13px; }
+.nowrap { white-space: nowrap; }
+.org { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.org-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.org-switch { margin: 0; }
+.org-switch select { width: auto; max-width: 220px; padding: 5px 8px; font-size: 14px; }
+.role-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.role-note { border-left-color: var(--accent); background: var(--surface-2); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); vertical-align: 1px; }
+.dot.baixo { background: var(--good); }
+.dot.medio { background: var(--warning); }
+.dot.critico { background: var(--critical); }
+.password { display: flex; gap: 8px; }
+.password input { flex: 1; min-width: 0; }
+.inline-form { display: flex; gap: 8px; align-items: center; margin: 0; flex-wrap: wrap; }
+.inline-form select, .inline-form input { width: auto; flex: 1 1 140px; }
+.plain-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.plain-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.plain-list form { margin: 0; }
+.section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.section-head form { margin: 0; }
+h3 { font-size: 14px; font-weight: 650; margin: 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+td.num, th.num { text-align: right; }
+td.num form { display: inline-block; margin: 0; }
+.matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
+.btn.danger.small { padding: 6px 10px; }
+@media (max-width: 720px) {
+  .topbar-inner { gap: 10px; }
+  .org { order: 3; width: 100%; }
+  .nav { margin-left: 0; }
+}

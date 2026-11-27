@@ -107,6 +107,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 2px solid var(--series-1); outline-offset: 2px;
 }
 #theme { white-space: nowrap; flex-shrink: 0; }
+.top > button + button, .top > button { margin-left: 8px; }
 
 .card {
   background: var(--surface);
@@ -432,6 +433,10 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
   // ---------- Cabeçalho ----------
   if (D.nav) {
     $("#nav").append(h("a", { class: "back", href: D.nav.href }, "← " + D.nav.label));
+    if (D.nav.refresh) {
+      $("#theme").before(h("button", { type: "button", "data-tip": "Recarrega com os logs que chegaram desde " + D.generated,
+        onclick: () => location.reload() }, "Atualizar"));
+    }
     $("#eyebrow").textContent = D.nav.title || "Analisador de logs";
   } else {
     $("#eyebrow").textContent = D.kind === "web" ? "Analisador de logs web" : "Analisador de logs SSH";

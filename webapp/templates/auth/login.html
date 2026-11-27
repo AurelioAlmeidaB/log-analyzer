@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Entrar{% endblock %}
 {% block body %}
-<main class="auth">
+<main class="auth" id="conteudo">
   <div class="card">
     <h1>Entrar</h1>
-    <p class="sub">Veja os ataques às suas aplicações.</p>
+    <p class="sub">Veja os ataques às aplicações da sua equipe.</p>
     {% include "_messages.html" %}
     {% if error %}<div class="alert error field" role="alert">{{ error }}</div>{% endif %}
     <form method="post" action="{{ url_for('auth.login') }}">
@@ -16,11 +16,14 @@
       </div>
       <div class="field">
         <label for="password">Senha</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required {% if email %}autofocus{% endif %}>
+        <div class="password">
+          <input id="password" name="password" type="password" autocomplete="current-password" required {% if email %}autofocus{% endif %}>
+          <button type="button" class="btn small" data-toggle-password="password" aria-pressed="false">Mostrar</button>
+        </div>
       </div>
       <button class="btn primary block" type="submit">Continuar</button>
     </form>
   </div>
-  {% if allow_signup %}<p class="foot">Ainda não tem conta? <a href="{{ url_for('auth.register') }}">Criar conta</a></p>{% endif %}
+  {% if allow_signup %}<p class="foot">Ainda não tem conta? <a href="{{ url_for('auth.register', next=next) if next else url_for('auth.register') }}">Criar conta</a></p>{% endif %}
 </main>
 {% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Equipe{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Equipe</h1><p class="sub">Quem acessa as aplicações desta organização e o que cada pessoa pode fazer.</p></div></div>
+
+{% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+{% if invite_link %}
+<div class="alert warn" role="status">
+  <p><strong>Envie este link para {{ invite_email }}.</strong> Ele vale por 7 dias, uma vez, e só para esse e-mail. Não aparece de novo.</p>
+  <div class="copy field"><pre id="invite-link" class="key">{{ invite_link }}</pre><button class="btn small" type="button" data-copy="invite-link">Copiar</button></div>
+</div>
+{% endif %}
+
+<section class="card">
+  <h2>Membros</h2>
+  <div class="table-wrap field">
+    <table>
+      <thead><tr><th>E-mail</th><th>Papel</th><th class="num">Ações</th></tr></thead>
+      <tbody>
+      {% for m in members %}
+        {% set last_admin = m.role == 'admin' and admin_count == 1 %}
+        <tr>
+          <td>{{ m.email }}{% if m.id == g.user.id %} <span class="tag">você</span>{% endif %}</td>
+          <td>
+            <form method="post" action="{{ url_for('team.change_role', user_id=m.id) }}" class="inline-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="visually-hidden" for="role-{{ m.id }}">Papel de {{ m.email }}</label>
+              <select id="role-{{ m.id }}" name="role" {% if last_admin %}disabled title="A organização precisa de pelo menos um administrador"{% endif %}>
+                {% for key, label in roles.items() %}<option value="{{ key }}" {% if key == m.role %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              {% if not last_admin %}<button class="btn small" type="submit">Salvar</button>{% endif %}
+            </form>
+          </td>
+          <td class="num">
+            {% if not last_admin %}
+            <form method="post" action="{{ url_for('team.remove_member', user_id=m.id) }}" data-confirm="Remover {{ m.email }}? A pessoa perde o acesso na hora.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn small danger" type="submit">Remover</button>
+            </form>
+            {% else %}<span class="muted small">único admin</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="two">
+  <section class="card">
+    <h2>Convidar pessoa</h2>
+    <form method="post" action="{{ url_for('team.invite') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label for="invite-email">E-mail</label><input id="invite-email" name="email" type="email" required maxlength="254" autocomplete="off"></div>
+      <div class="field"><label for="invite-role">Papel</label>
+        <select id="invite-role" name="role">
+          <option value="analyst">Analista SOC: só vê e exporta</option>
+          <option value="admin">Administrador: controle total</option>
+        </select>
+      </div>
+      <button class="btn primary block" type="submit">Gerar link de convite</button>
+    </form>
+    {% if invitations %}
+    <h3 class="field">Convites pendentes</h3>
+    <ul class="plain-list">
+      {% for i in invitations %}
+      <li><span>{{ i.email }} · {{ roles[i.role] }}</span>
+        <form method="post" action="{{ url_for('team.revoke_invite', invite_id=i.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn small" type="submit">Cancelar</button>
+        </form></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2>O que cada papel pode fazer</h2>
+    <div class="table-wrap field">
+      <table class="matrix">
+        <thead><tr><th>Ação</th><th>Administrador</th><th>Analista SOC</th></tr></thead>
+        <tbody>
+          <tr><td>Ver aplicações, painéis e logs</td><td>Sim</td><td>Sim</td></tr>
+          <tr><td>Baixar relatório</td><td>Sim</td><td>Sim</td></tr>
+          <tr><td>Enviar arquivo de log</td><td>Sim</td><td>Não</td></tr>
+          <tr><td>Criar e excluir aplicações</td><td>Sim</td><td>Não</td></tr>
+          <tr><td>Ver e trocar chaves do agente</td><td>Sim</td><td>Não</td></tr>
+          <tr><td>Convidar, mudar papéis, remover</td><td>Sim</td><td>Não</td></tr>
+          <tr><td>Ver o registro de atividade</td><td>Sim</td><td>Não</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3 class="field">Nome da organização</h3>
+    <form method="post" action="{{ url_for('team.rename') }}" class="inline-form field">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="visually-hidden" for="org-name">Nome da organização</label>
+      <input id="org-name" name="name" type="text" maxlength="80" required value="{{ g.org.name }}">
+      <button class="btn" type="submit">Salvar</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

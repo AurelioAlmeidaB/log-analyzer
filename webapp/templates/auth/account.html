@@ -1,34 +1,99 @@
 {% extends "base.html" %}
 {% block title %}Conta{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Conta</h1></div></div>
-<div class="card">
-  <dl class="facts">
-    <dt>E-mail</dt><dd>{{ g.user.email }}</dd>
+<div class="page-head"><div><h1>Conta</h1><p class="sub">{{ g.user.email }}</p></div></div>
+
+<section class="card">
+  <h2>Segurança</h2>
+  <dl class="facts field">
     <dt>Verificação em duas etapas</dt><dd><span class="badge baixo">Ativa</span></dd>
-    <dt>Códigos de recuperação</dt><dd>{{ recovery_left }} sem uso</dd>
+    <dt>Códigos de recuperação</dt><dd>{{ recovery_left }} sem uso{% if recovery_left <= 2 %} · <strong>gere novos abaixo</strong>{% endif %}</dd>
   </dl>
-</div>
+</section>
+
+<section class="card">
+  <div class="section-head">
+    <div><h2>Sessões abertas</h2><p class="sub">Navegadores onde sua conta está conectada. Uma sessão sem uso por 2 horas termina sozinha.</p></div>
+    {% if sessions|length > 1 %}
+    <form method="post" action="{{ url_for('auth.end_sessions') }}" data-confirm="Encerrar todas as outras sessões? Quem estiver usando sua conta nelas sai na hora.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Encerrar as outras</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="table-wrap field">
+    <table>
+      <thead><tr><th>Navegador</th><th>IP</th><th>Último uso</th></tr></thead>
+      <tbody>
+      {% for s in sessions %}
+        <tr>
+          <td>{{ (s.user_agent or "desconhecido")[:70] }}{% if s.token_hash == current_session %} <span class="tag">esta sessão</span>{% endif %}</td>
+          <td class="mono">{{ s.ip }}</td>
+          <td>{{ s.last_seen|ago_epoch }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
 <div class="two">
   <section class="card">
     <h2>Trocar senha</h2>
+    <p class="sub field">As outras sessões são encerradas.</p>
     <form method="post" action="{{ url_for('auth.change_password') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="text" name="username" value="{{ g.user.email }}" autocomplete="username" hidden>
       <div class="field"><label for="current">Senha atual</label><input id="current" name="current" type="password" autocomplete="current-password" required></div>
-      <div class="field"><label for="new">Nova senha</label><input id="new" name="new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></div>
+      <div class="field"><label for="new">Nova senha</label>
+        <div class="password"><input id="new" name="new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+        <button type="button" class="btn small" data-toggle-password="new" aria-pressed="false">Mostrar</button></div></div>
       <div class="field"><label for="confirm">Repita a nova senha</label><input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></div>
       <button class="btn primary block" type="submit">Trocar senha</button>
     </form>
   </section>
-  <section class="card">
-    <h2>Novos códigos de recuperação</h2>
-    <p class="sub field">Os códigos antigos param de funcionar. Confirme com o código do app autenticador.</p>
-    <form method="post" action="{{ url_for('auth.new_recovery_codes') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="field"><label for="code">Código de 6 dígitos</label><input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>
-      <button class="btn block" type="submit">Gerar novos códigos</button>
-    </form>
+  <section class="card stack">
+    <div>
+      <h2>Celular novo ou perdido</h2>
+      <p class="sub field">Configure o app autenticador de novo. Pedimos sua senha para confirmar.</p>
+      <form method="post" action="{{ url_for('auth.reset_2fa_start') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label for="reset-password">Senha</label><input id="reset-password" name="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn block" type="submit">Trocar app autenticador</button>
+      </form>
+    </div>
+    <div>
+      <h2>Novos códigos de recuperação</h2>
+      <p class="sub field">Os códigos antigos param de funcionar.</p>
+      <form method="post" action="{{ url_for('auth.new_recovery_codes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label for="code">Código de 6 dígitos do app</label><input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>
+        <button class="btn block" type="submit">Gerar novos códigos</button>
+      </form>
+    </div>
   </section>
 </div>
+
+<section class="card mt">
+  <h2>Organizações</h2>
+  <div class="table-wrap field">
+    <table>
+      <thead><tr><th>Organização</th><th>Seu papel</th><th></th></tr></thead>
+      <tbody>
+      {% for o in g.orgs %}
+        <tr>
+          <td>{{ o.name }}{% if o.id == g.org.id %} <span class="tag">atual</span>{% endif %}</td>
+          <td>{{ ROLE_LABELS[o.role] }}</td>
+          <td class="num">
+            <form method="post" action="{{ url_for('team.leave', org_id=o.id) }}" data-confirm="Sair de {{ o.name }}? Você perde o acesso às aplicações dela.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn small" type="submit">Sair</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

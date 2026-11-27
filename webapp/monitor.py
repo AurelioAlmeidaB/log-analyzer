@@ -1,9 +1,10 @@
 """
-Aplicações monitoradas: cadastro, chave de API, envio de logs (upload ou agente)
-e o painel de ataques de cada uma.
+Aplicações monitoradas: cadastro, chave de API, envio de logs (upload ou agente),
+o painel de ataques e o relatório em JSON.
 
-Cada aplicação pertence a uma conta. Toda consulta filtra por user_id, então
-ninguém vê aplicação de outra pessoa trocando o número na URL.
+Cada aplicação pertence a uma organização. Toda consulta junta a aplicação com
+a participação da pessoa naquela organização: quem não é membro recebe 404
+(nem descobre que a aplicação existe) e quem não tem o papel exigido recebe 403.
 """
 
 from __future__ import annotations
@@ -13,12 +14,14 @@ import hmac
 import json
 import secrets
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import (Blueprint, abort, flash, g, jsonify, redirect, render_template, request, send_file, url_for)
+from flask import (Blueprint, Response, abort, flash, g, jsonify, redirect, render_template, request, send_file,
+                   url_for)
 
 from .db import get_db
-from .security import csp_nonce, login_required
+from .security import audit, can, csp_nonce, login_required, require, switch_org
 
 # O analisador fica na raiz do projeto, um nível acima deste pacote.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,11 +30,12 @@ from dashboard import analyze_lines, render_html  # noqa: E402
 
 bp = Blueprint("monitor", __name__)
 
-KINDS = {"ssh": "Servidor (SSH / auth.log)", "web": "Site ou API (nginx / Apache)"}
+KINDS = {"ssh": "Servidor Linux (SSH / auth.log)", "web": "Site ou API (nginx / Apache)"}
 LOG_HINT = {"ssh": "/var/log/auth.log", "web": "/var/log/nginx/access.log"}
 MAX_LINES_PER_APP = 200_000      # guarda só as mais recentes
 MAX_LINE_LENGTH = 8_192
 MAX_INGEST_LINES = 10_000        # por requisição do agente
+AGENT_ONLINE_SECONDS = 120       # recebeu algo nos últimos 2 min: agente ativo
 
 
 def _new_api_key() -> tuple[str, str, str]:
@@ -40,10 +44,17 @@ def _new_api_key() -> tuple[str, str, str]:
     return key, hashlib.sha256(key.encode()).hexdigest(), key[:7] + "…" + key[-4:]
 
 
-def _get_app(app_id: int):
-    row = get_db().execute("SELECT * FROM apps WHERE id = ? AND user_id = ?", (app_id, g.user["id"])).fetchone()
+def _get_app(app_id: int, action: str = "view"):
+    """A aplicação, se a pessoa for membro da organização dela e o papel permitir `action`."""
+    row = get_db().execute(
+        "SELECT apps.*, m.role AS my_role FROM apps "
+        "JOIN memberships m ON m.org_id = apps.org_id AND m.user_id = ? WHERE apps.id = ?",
+        (g.user["id"], app_id)).fetchone()
     if row is None:
         abort(404)
+    if row["org_id"] != g.org["id"]:       # link de outra organização da pessoa: troca para ela
+        switch_org(row["org_id"])
+    require(action, row["my_role"])
     return row
 
 
@@ -91,25 +102,63 @@ def _summary(app) -> dict:
     return summary
 
 
+def seconds_since(utc_text: str | None) -> float | None:
+    if not utc_text:
+        return None
+    then = datetime.strptime(utc_text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - then).total_seconds()
+
+
+def time_ago(utc_text: str | None) -> str:
+    """"há 3 min": funciona em qualquer fuso, ao contrário de mostrar a hora UTC."""
+    return _ago(seconds_since(utc_text))
+
+
+def epoch_ago(epoch: float | None) -> str:
+    return _ago(None if epoch is None else datetime.now(timezone.utc).timestamp() - epoch)
+
+
+def _ago(seconds: float | None) -> str:
+    if seconds is None:
+        return "nunca"
+    if seconds < 60:
+        return "agora há pouco"
+    for size, one, many in ((86400, "dia", "dias"), (3600, "hora", "horas"), (60, "min", "min")):
+        if seconds >= size:
+            n = int(seconds // size)
+            return f"há {n} {one if n == 1 else many}"
+    return "agora há pouco"
+
+
+def agent_status(app) -> tuple[str, str]:
+    """(nível do badge, texto) sobre o último envio de linhas."""
+    seconds = seconds_since(app["last_received_at"])
+    if seconds is None:
+        return "medio", "Nenhum log recebido ainda"
+    if seconds <= AGENT_ONLINE_SECONDS:
+        return "baixo", "Recebendo logs"
+    return "medio", f"Último log {time_ago(app['last_received_at'])}"
+
+
 def _detail(app, new_key: str | None = None):
     count = get_db().execute("SELECT COUNT(*) FROM log_lines WHERE app_id = ?", (app["id"],)).fetchone()[0]
-    server = request.host_url.rstrip("/")
     return render_template("apps/detail.html", app=app, kinds=KINDS, line_count=count, new_key=new_key,
-                           server=server, log_hint=LOG_HINT[app["kind"]],
-                           summary=_summary(app) if count else None)
+                           server=request.host_url.rstrip("/"), log_hint=LOG_HINT[app["kind"]],
+                           summary=_summary(app) if count else None, status=agent_status(app))
 
 
 @bp.route("/")
 @login_required
 def index():
-    apps = get_db().execute("SELECT * FROM apps WHERE user_id = ? ORDER BY created_at DESC, id DESC",
-                            (g.user["id"],)).fetchall()
-    return render_template("apps/index.html", apps=[(a, _summary(a)) for a in apps], kinds=KINDS)
+    apps = get_db().execute("SELECT * FROM apps WHERE org_id = ? ORDER BY created_at DESC, id DESC",
+                            (g.org["id"],)).fetchall()
+    return render_template("apps/index.html", apps=[(a, _summary(a), agent_status(a)) for a in apps], kinds=KINDS)
 
 
 @bp.route("/apps/nova", methods=["GET", "POST"])
 @login_required
 def new_app():
+    require("manage_apps")
     error = None
     form = {"name": "", "kind": "ssh", "threshold": "5"}
     if request.method == "POST":
@@ -128,10 +177,12 @@ def new_app():
             key, key_hash, hint = _new_api_key()
             db = get_db()
             cur = db.execute(
-                "INSERT INTO apps (user_id, name, kind, threshold, api_key_hash, api_key_hint) VALUES (?, ?, ?, ?, ?, ?)",
-                (g.user["id"], form["name"], form["kind"], threshold, key_hash, hint))
+                "INSERT INTO apps (user_id, org_id, name, kind, threshold, api_key_hash, api_key_hint) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (g.user["id"], g.org["id"], form["name"], form["kind"], threshold, key_hash, hint))
+            audit("app_criada", form["name"])
             db.commit()
-            return _detail(_get_app(cur.lastrowid), new_key=key)
+            return _detail(_get_app(cur.lastrowid, "manage_apps"), new_key=key)
     return render_template("apps/new.html", kinds=KINDS, form=form, error=error)
 
 
@@ -146,14 +197,25 @@ def detail(app_id: int):
 def dashboard(app_id: int):
     app = _get_app(app_id)
     nav = {"href": url_for("monitor.detail", app_id=app_id), "label": "Voltar para " + app["name"],
-           "title": app["name"]}
+           "title": f"{g.org['name']} · {app['name']}", "refresh": True}
     return render_html(_analysis(app), nonce=csp_nonce(), nav=nav)
+
+
+@bp.route("/apps/<int:app_id>/relatorio.json")
+@login_required
+def report(app_id: int):
+    app = _get_app(app_id, "export")
+    data = _analysis(app)
+    data.pop("lines", None)                  # o relatório leva a análise, não o log cru
+    filename = f"relatorio-{app['id']}-{datetime.now():%Y%m%d-%H%M}.json"
+    return Response(json.dumps(data, ensure_ascii=False, indent=2), mimetype="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 @bp.route("/apps/<int:app_id>/upload", methods=["POST"])
 @login_required
 def upload(app_id: int):
-    app = _get_app(app_id)
+    app = _get_app(app_id, "upload")
     file = request.files.get("logfile")
     if not file or not file.filename:
         flash("Escolha um arquivo de log.", "error")
@@ -163,16 +225,19 @@ def upload(app_id: int):
     if not count:
         flash("O arquivo estava vazio.", "error")
         return redirect(url_for("monitor.detail", app_id=app_id))
+    audit("logs_enviados", f"{app['name']} ({count} linhas)")
+    get_db().commit()
     return redirect(url_for("monitor.dashboard", app_id=app_id))
 
 
 @bp.route("/apps/<int:app_id>/chave", methods=["POST"])
 @login_required
 def rotate_key(app_id: int):
-    app = _get_app(app_id)
+    app = _get_app(app_id, "manage_apps")
     key, key_hash, hint = _new_api_key()
     db = get_db()
     db.execute("UPDATE apps SET api_key_hash = ?, api_key_hint = ? WHERE id = ?", (key_hash, hint, app["id"]))
+    audit("chave_trocada", app["name"])
     db.commit()
     return _detail(_get_app(app_id), new_key=key)
 
@@ -180,10 +245,11 @@ def rotate_key(app_id: int):
 @bp.route("/apps/<int:app_id>/limpar", methods=["POST"])
 @login_required
 def clear_lines(app_id: int):
-    app = _get_app(app_id)
+    app = _get_app(app_id, "manage_apps")
     db = get_db()
     db.execute("DELETE FROM log_lines WHERE app_id = ?", (app["id"],))
     db.execute("UPDATE apps SET version = version + 1 WHERE id = ?", (app["id"],))
+    audit("logs_apagados", app["name"])
     db.commit()
     flash("Linhas apagadas.")
     return redirect(url_for("monitor.detail", app_id=app_id))
@@ -192,12 +258,13 @@ def clear_lines(app_id: int):
 @bp.route("/apps/<int:app_id>/excluir", methods=["POST"])
 @login_required
 def delete_app(app_id: int):
-    app = _get_app(app_id)
+    app = _get_app(app_id, "manage_apps")
     if request.form.get("confirm_name", "").strip() != app["name"]:
         flash("Digite o nome da aplicação exatamente como está para excluir.", "error")
         return redirect(url_for("monitor.detail", app_id=app_id))
     db = get_db()
     db.execute("DELETE FROM apps WHERE id = ?", (app["id"],))
+    audit("app_excluida", app["name"])
     db.commit()
     flash(f"Aplicação {app['name']} excluída.")
     return redirect(url_for("monitor.index"))

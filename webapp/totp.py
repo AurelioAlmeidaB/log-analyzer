@@ -81,11 +81,21 @@ def new_recovery_codes(count: int = 8) -> list[str]:
     return codes
 
 
-def hash_recovery_code(code: str) -> str:
-    normalized = code.strip().lower().replace("-", "").replace(" ", "")
-    return hashlib.sha256(normalized.encode()).hexdigest()
+def _normalize(code: str) -> str:
+    return code.strip().lower().replace("-", "").replace(" ", "")
+
+
+def hash_recovery_code(code: str, pepper: str) -> str:
+    """HMAC com a chave secreta do servidor: com ~49 bits por código, um SHA-256 puro
+    seria quebrado em horas por quem copiasse o banco; sem a chave, não."""
+    return hmac.new(pepper.encode(), _normalize(code).encode(), hashlib.sha256).hexdigest()
+
+
+def legacy_hash_recovery_code(code: str) -> str:
+    """Formato antigo (SHA-256 puro), aceito só para códigos gerados antes da mudança."""
+    return hashlib.sha256(_normalize(code).encode()).hexdigest()
 
 
 def looks_like_recovery_code(code: str) -> bool:
-    normalized = code.strip().lower().replace("-", "").replace(" ", "")
+    normalized = _normalize(code)
     return len(normalized) == 10 and all(c in RECOVERY_ALPHABET for c in normalized)

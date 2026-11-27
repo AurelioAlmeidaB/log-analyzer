@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Convite{% endblock %}
+{% block body %}
+<main class="auth" id="conteudo">
+  <div class="card">
+    {% if problem %}
+      <h1>Convite inválido</h1>
+      <p class="sub field">{{ problem }}</p>
+      <a class="btn block" href="{{ url_for('monitor.index') }}">Ir para minhas aplicações</a>
+    {% else %}
+      <h1>Entrar na equipe</h1>
+      <p class="sub field">Você foi convidado para <strong>{{ invite.org_name }}</strong> como <strong>{{ role_label }}</strong>.</p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn primary block" type="submit">Aceitar convite</button>
+      </form>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}
