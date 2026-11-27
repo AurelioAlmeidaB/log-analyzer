@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel de Ataques SSH</title>
-<style>
+<title>Painel de Ataques</title>
+<style__NONCE_ATTR__>
 :root {
   color-scheme: light;
   --page: #f9f9f7;
@@ -24,6 +24,7 @@
   --critical: #d03b3b;
   --crit-wash: rgba(208, 59, 59, 0.07);
   --good-wash: rgba(12, 163, 12, 0.07);
+  --warn-wash: rgba(250, 178, 25, 0.10);
   --recon: #c3c2b7;
   --flash: rgba(42, 120, 214, 0.16);
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -45,6 +46,7 @@
     --link: #86b6ef;
     --crit-wash: rgba(208, 59, 59, 0.14);
     --good-wash: rgba(12, 163, 12, 0.12);
+    --warn-wash: rgba(250, 178, 25, 0.12);
     --recon: #5d5c57;
     --flash: rgba(57, 135, 229, 0.24);
   }
@@ -64,6 +66,7 @@
   --link: #86b6ef;
   --crit-wash: rgba(208, 59, 59, 0.14);
   --good-wash: rgba(12, 163, 12, 0.12);
+  --warn-wash: rgba(250, 178, 25, 0.12);
   --recon: #5d5c57;
   --flash: rgba(57, 135, 229, 0.24);
 }
@@ -88,8 +91,10 @@ p { margin: 0; }
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
 .top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.top > div { min-width: 0; }
+.back { display: inline-block; margin-bottom: 10px; font-size: 13px; }
 .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-.meta { color: var(--ink-2); margin-top: 6px; }
+.meta { color: var(--ink-2); margin-top: 6px; overflow-wrap: anywhere; }
 .meta span + span::before { content: "·"; margin: 0 8px; color: var(--muted); }
 
 button {
@@ -101,6 +106,7 @@ button:hover { background: var(--surface-2); }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--series-1); outline-offset: 2px;
 }
+#theme { white-space: nowrap; flex-shrink: 0; }
 
 .card {
   background: var(--surface);
@@ -117,9 +123,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Veredito */
 .verdict { border-left: 4px solid var(--critical); background: var(--crit-wash); }
-.verdict.ok { border-left-color: var(--good); background: var(--good-wash); }
+.verdict.alto, .verdict.medio { border-left-color: var(--serious); background: var(--warn-wash); }
+.verdict.baixo { border-left-color: var(--good); background: var(--good-wash); }
 .verdict h2 { font-size: 18px; margin: 8px 0 6px; }
-.verdict p { color: var(--ink-2); max-width: 80ch; }
+.verdict p { color: var(--ink-2); max-width: 80ch; overflow-wrap: anywhere; }
 .verdict .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Badges de risco: ponto colorido + texto (cor nunca sozinha) */
@@ -157,67 +164,77 @@ tbody tr:hover { background: var(--surface-2); }
 .ip-link {
   font-family: var(--mono); font-size: 12.5px; color: var(--link);
   background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  white-space: nowrap; text-align: left;
 }
+.seq-who .ip-link { white-space: normal; overflow-wrap: anywhere; }
 .ip-link:hover { background: none; }
-.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; }
+.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; overflow-wrap: anywhere; }
 
 /* Barras horizontais */
 .bars { display: grid; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: minmax(60px, 90px) 1fr 24px 112px; gap: 10px; align-items: center; min-height: 24px; }
+.bar-row { display: grid; grid-template-columns: minmax(60px, 140px) 1fr 28px minmax(0, 150px); gap: 10px; align-items: center; min-height: 24px; }
 .bar-row .name { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { position: relative; height: 20px; display: flex; align-items: center; }
 .bar-track::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; border-left: 1px solid var(--axis); }
 .bar { height: 10px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 3px; }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.bar-row .flags { display: flex; gap: 6px; }
+.bar-row .flags { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Alvo */
 .target-host { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin-top: 14px; }
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; }
+.kv dd { margin: 0; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Ferramentas e técnicas */
+/* Ferramentas, técnicas e correções */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .item { padding: 12px 0; border-top: 1px solid var(--grid); }
 .item:first-of-type { border-top: 0; }
 .item-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .item-head strong { font-size: 14px; }
-.item p { color: var(--ink-2); margin-top: 4px; }
+.item p { color: var(--ink-2); margin-top: 4px; overflow-wrap: anywhere; }
 .evidence { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
 .line-link {
   font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 6px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--link);
 }
 .mitre { font-family: var(--mono); font-size: 12px; }
+.fix { padding: 16px 0; border-top: 1px solid var(--grid); }
+.fix:first-child { border-top: 0; padding-top: 0; }
+.fix ol { margin: 10px 0 0; padding-left: 20px; color: var(--ink); }
+.fix li { margin: 4px 0; }
+.code { position: relative; margin-top: 10px; }
+.code pre {
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  font: 12px/1.6 var(--mono); overflow-x: auto; white-space: pre;
+}
+.code button { position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 12px; }
 
 /* Sequência por IP */
 .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-2); font-size: 12.5px; margin-bottom: 14px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .seq-row { display: grid; grid-template-columns: 190px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); align-items: start; }
 .seq-row:first-of-type { border-top: 0; }
-.seq-who { display: grid; gap: 4px; justify-items: start; }
+.seq-who { display: grid; gap: 4px; justify-items: start; min-width: 0; }
 .seq { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
 .chip {
   width: 20px; height: 20px; border-radius: 4px; border: 0; padding: 0;
   display: inline-grid; place-items: center;
   font: 700 11px/1 var(--sans); color: #0b0b0b; cursor: pointer;
 }
-.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; background-image: none; }
-.chip.failed { background: var(--serious); }
-.chip.failed:hover { background: var(--serious); }
-.chip.accepted { background: var(--good); }
-.chip.accepted:hover { background: var(--good); }
-.chip.crit { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
-.chip.crit:hover { background: var(--critical); }
-.chip.recon { background: var(--recon); color: var(--ink); }
-.chip.recon:hover { background: var(--recon); }
+.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.chip.failed, .chip.failed:hover { background: var(--serious); }
+.chip.accepted, .chip.accepted:hover { background: var(--good); }
+.chip.warn, .chip.warn:hover { background: var(--warning); }
+.chip.crit, .chip.crit:hover { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
+.chip.recon, .chip.recon:hover { background: var(--recon); color: var(--ink); }
+.chip.static { cursor: default; }
 .limit { display: inline-flex; flex-direction: column; align-items: center; margin: 0 4px; height: 30px; justify-content: center; }
 .limit::before { content: ""; width: 2px; flex: 1; background: var(--ink); }
 .limit span { font-size: 10px; color: var(--ink-2); line-height: 1; margin-top: 2px; }
-.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; grid-column: 2; }
+.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; }
 
 /* Log */
 .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
@@ -226,7 +243,7 @@ tbody tr:hover { background: var(--surface-2); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 select, input[type="search"] {
   font: inherit; color: var(--ink); background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0; max-width: 100%;
 }
 input[type="search"] { flex: 1 1 200px; }
 .count { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
@@ -235,17 +252,18 @@ input[type="search"] { flex: 1 1 200px; }
   background: var(--surface-2); border-radius: 8px; padding: 6px 0;
   max-height: 560px; overflow: auto;
 }
-.log-row { display: grid; grid-template-columns: 40px 92px 1fr; gap: 10px; padding: 2px 12px; }
+.log-row { display: grid; grid-template-columns: 48px 104px 1fr; gap: 10px; padding: 2px 12px; }
 .log-row:hover { background: var(--flash); }
 .log-row.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { from { background: var(--flash); box-shadow: inset 3px 0 0 var(--series-1); } to { background: transparent; } }
 .log-row .ln { color: var(--muted); text-align: right; user-select: none; }
 .log-row .txt { white-space: pre-wrap; word-break: break-word; }
 .k { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); white-space: nowrap; }
-.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); }
-.k.failed, .k.invalid_user { --kc: var(--serious); }
-.k.accepted, .k.session { --kc: var(--good); }
-.k.accepted.crit { --kc: var(--critical); color: var(--ink); }
+.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); flex-shrink: 0; }
+.k.failed, .k.invalid_user, .k.attack, .k.login_fail { --kc: var(--serious); }
+.k.attack_ok { --kc: var(--warning); }
+.k.accepted, .k.session, .k.login_ok { --kc: var(--good); }
+.k.crit { --kc: var(--critical); color: var(--ink); }
 .k.recon { --kc: var(--recon); }
 .k.client { --kc: var(--series-1); }
 .hl-kw { font-weight: 700; }
@@ -254,9 +272,9 @@ input[type="search"] { flex: 1 1 200px; }
 footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid; gap: 6px; }
 
 #tip {
-  position: fixed; z-index: 10; pointer-events: none; max-width: 320px;
+  position: fixed; z-index: 10; pointer-events: none; max-width: 340px;
   background: var(--ink); color: var(--surface); border-radius: 8px;
-  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line;
+  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
 }
 #tip[hidden] { display: none; }
@@ -264,17 +282,18 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 @media (max-width: 860px) {
   .grid-2, .split { grid-template-columns: 1fr; }
   .seq-row { grid-template-columns: 1fr; }
-  .seq-sum { grid-column: 1; }
 }
 @media (max-width: 560px) {
   .top { flex-direction: column; }
-  .bar-row { grid-template-columns: minmax(60px, 90px) 1fr 24px; }
+  .bar-row { grid-template-columns: minmax(60px, 110px) 1fr 28px; }
   .bar-row .flags { grid-column: 2 / 4; }
   .bar-row .flags:empty { display: none; }
-  .log-row { grid-template-columns: 30px 1fr; }
+  .log-row { grid-template-columns: 36px 1fr; }
   .log-row .k { grid-column: 2; }
   .log-row .txt { grid-column: 1 / 3; }
   .kpi .value { font-size: 24px; }
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv dd { margin-bottom: 8px; }
 }
 @media (forced-colors: active) {
   .chip, .badge::before, .k::before { forced-color-adjust: none; }
@@ -285,7 +304,8 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 <div class="wrap">
   <header class="top">
     <div>
-      <p class="eyebrow">Analisador de logs SSH</p>
+      <div id="nav"></div>
+      <p class="eyebrow" id="eyebrow">Analisador de logs</p>
       <h1>Painel de ataques</h1>
       <p class="meta" id="meta"></p>
     </div>
@@ -299,7 +319,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     <section class="card">
       <div class="card-head">
         <h2>Origem dos ataques</h2>
-        <p>Quem tentou entrar, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
+        <p>Quem atacou, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
       </div>
       <div class="table-wrap"><table id="attackers"></table></div>
     </section>
@@ -308,23 +328,31 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
       <section class="card">
         <div class="card-head">
           <h2>Alvo</h2>
-          <p>O que foi atacado neste servidor.</p>
+          <p id="target-sub"></p>
         </div>
         <div id="target"></div>
       </section>
       <section class="card">
         <div class="card-head">
-          <h2>Contas mais atacadas</h2>
-          <p>Falhas de login por conta.</p>
+          <h2 id="accounts-title"></h2>
+          <p id="accounts-sub"></p>
         </div>
         <div class="bars" id="accounts"></div>
       </section>
     </div>
 
+    <section class="card" id="fixes-card">
+      <div class="card-head">
+        <h2>Como corrigir</h2>
+        <p>O que fazer para cada tipo de ataque encontrado, do mais grave para o menos grave.</p>
+      </div>
+      <div id="fixes"></div>
+    </section>
+
     <section class="card">
       <div class="card-head">
         <h2>Ferramentas e técnicas</h2>
-        <p>Inferidas do banner do cliente SSH e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
+        <p>Inferidas do cliente usado e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
       </div>
       <div class="split">
         <div><h3>Ferramentas prováveis</h3><div id="tools"></div></div>
@@ -335,7 +363,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     <section class="card">
       <div class="card-head">
         <h2>Sequência de eventos por IP</h2>
-        <p>O log é lido na ordem. Contar falhas mostra o brute force; só a ordem mostra que o login aceito veio <em>depois</em> delas.</p>
+        <p id="seq-intro"></p>
       </div>
       <div class="legend" id="seq-legend"></div>
       <div id="sequences"></div>
@@ -343,7 +371,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 
     <section class="card" id="log-card">
       <div class="card-head">
-        <h2>Log completo</h2>
+        <h2>Log</h2>
       </div>
       <div class="filters">
         <div class="seg" id="kind-filter" role="group" aria-label="Tipo de linha"></div>
@@ -357,16 +385,17 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 
   <footer>
     <p>Use apenas em logs seus ou de laboratório.</p>
-    <p>"Ferramenta provável" é heurística: o banner do cliente pode ser falsificado e só aparece no log com <span class="mono">LogLevel DEBUG1</span>; a porta de destino aparece com <span class="mono">LogLevel VERBOSE</span>.</p>
+    <p>"Ferramenta provável" é heurística: banner e user-agent podem ser falsificados. No SSH, o banner do cliente só aparece com <span class="mono">LogLevel DEBUG1</span> e a porta de destino com <span class="mono">LogLevel VERBOSE</span>.</p>
   </footer>
 </div>
 <div id="tip" role="tooltip" hidden></div>
 
 <script id="data" type="application/json">__DATA__</script>
-<script>
+<script__NONCE_ATTR__>
 (() => {
   "use strict";
   const D = JSON.parse(document.getElementById("data").textContent);
+  const L = D.labels;
   const $ = (sel) => document.querySelector(sel);
   const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
@@ -376,6 +405,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     for (const [k, v] of Object.entries(attrs || {})) {
       if (v == null || v === false) continue;
       if (k === "class") el.className = v;
+      else if (k === "style") el.style.cssText = v;          // CSSOM: permitido pela CSP
       else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
       else el.setAttribute(k, v === true ? "" : v);
     }
@@ -386,87 +416,46 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     return el;
   }
 
-  const RISK = {
-    critico: "Crítico",
-    alto: "Alto",
-    medio: "Médio",
-    baixo: "Baixo",
-  };
-  const KIND = {
-    failed: "FALHA",
-    invalid_user: "USUÁRIO INVÁLIDO",
-    accepted: "ACEITO",
-    session: "SESSÃO",
-    recon: "VARREDURA",
-    client: "CLIENTE",
-    connection: "CONEXÃO",
-    other: "",
-  };
+  const RISK = { critico: "Crítico", alto: "Alto", medio: "Médio", baixo: "Baixo" };
+  const GLYPH = { failed: "✕", accepted: "✓", warn: "!", recon: "?", crit: "!" };
   const MITRE_URL = (id) => "https://attack.mitre.org/techniques/" + id.replace(".", "/") + "/";
   const byIp = Object.fromEntries(D.attackers.map((a) => [a.ip, a]));
-  const critLines = new Set(D.alerts.map((a) => a.line));
-  const clock = (t) => (t ? t.replace(/^.*?(\d{2}:\d{2}:\d{2}).*$/, "$1") : "—");
+  const critLines = new Set(D.critical_lines);
   const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
 
-  const badge = (risk) => h("span", { class: "badge " + risk }, RISK[risk]);
+  const badge = (risk, text) => h("span", { class: "badge " + risk }, text || RISK[risk]);
   const ipButton = (ip) =>
     h("button", { class: "ip-link", type: "button", onclick: (e) => { e.stopPropagation(); showIp(ip); } }, ip);
   const lineLink = (n) =>
     h("button", { class: "line-link", type: "button", "data-tip": "Ir para a linha " + n, onclick: () => jumpTo(n) }, "L" + n);
 
   // ---------- Cabeçalho ----------
-  const meta = $("#meta");
-  meta.append(
-    h("span", null, h("span", { class: "mono" }, D.file)),
-    h("span", null, "host " + (D.hosts.join(", ") || "—")),
-    h("span", null, (D.period.start || "—") + " → " + (D.period.end || "—")),
-    h("span", null, "gerado em " + D.generated)
-  );
+  if (D.nav) {
+    $("#nav").append(h("a", { class: "back", href: D.nav.href }, "← " + D.nav.label));
+    $("#eyebrow").textContent = D.nav.title || "Analisador de logs";
+  } else {
+    $("#eyebrow").textContent = D.kind === "web" ? "Analisador de logs web" : "Analisador de logs SSH";
+  }
+  $("#meta").append(...D.meta.map((m, i) => h("span", null, i === 0 ? h("span", { class: "mono" }, m) : m)));
 
   // ---------- Veredito ----------
+  const V = D.verdict;
   const verdict = $("#verdict");
-  if (D.alerts.length) {
-    const a = D.alerts[0];
-    const who = byIp[a.ip];
-    verdict.append(
-      badge("critico"),
-      h("h2", null, D.alerts.length === 1 ? "Um atacante conseguiu entrar" : D.alerts.length + " logins aceitos após brute force"),
-      h("p", null,
-        h("strong", { class: "mono" }, a.ip),
-        " errou a senha " + plural(a.failures, "vez", "vezes") + " e depois entrou como ",
-        h("strong", { class: "mono" }, a.user),
-        " em " + a.time + (who ? ". Ferramenta provável: " + who.tool + "." : "."),
-        D.alerts.length > 1 ? " Há outros " + (D.alerts.length - 1) + " alertas na tabela abaixo." : ""
-      ),
-      h("div", { class: "actions" },
-        h("button", { type: "button", onclick: () => jumpTo(a.line) }, "Ver o login no log (L" + a.line + ")"),
-        h("button", { type: "button", onclick: () => showIp(a.ip) }, "Todas as linhas de " + a.ip)
-      )
-    );
-  } else {
-    verdict.classList.add("ok");
-    verdict.append(
-      badge("baixo"),
-      h("h2", null, "Nenhum atacante conseguiu entrar"),
-      h("p", null, D.totals.bruteforce
-        ? plural(D.totals.bruteforce, "IP passou", "IPs passaram") + " do limite de " + D.threshold + " falhas, mas nenhum teve login aceito depois disso."
-        : "Nenhum IP passou do limite de " + D.threshold + " falhas.")
-    );
-  }
+  verdict.classList.add(V.level);
+  verdict.append(
+    badge(V.level),
+    h("h2", null, V.title),
+    h("p", null, V.text),
+    V.actions.length ? h("div", { class: "actions" }, V.actions.map((a) =>
+      h("button", { type: "button", onclick: () => (a.line ? jumpTo(a.line) : showIp(a.ip)) }, a.label))) : null
+  );
 
   // ---------- KPIs ----------
-  const kpis = [
-    ["Eventos de login", D.totals.events, plural(D.totals.lines, "linha lida", "linhas lidas")],
-    ["Falhas", D.totals.failed, D.totals.events ? nf.format((100 * D.totals.failed) / D.totals.events) + "% das tentativas" : ""],
-    ["Logins aceitos", D.totals.accepted, plural(D.totals.critical, "após brute force", "após brute force")],
-    ["IPs de origem", D.totals.ips, plural(D.attackers.filter((a) => a.risk !== "baixo").length, "suspeito", "suspeitos")],
-    ["Brute force", D.totals.bruteforce, "IPs com ≥ " + D.threshold + " falhas"],
-  ];
-  $("#kpis").append(...kpis.map(([label, value, note]) =>
+  $("#kpis").append(...D.kpis.map((k) =>
     h("div", { class: "kpi" },
-      h("div", { class: "label" }, label),
-      h("div", { class: "value" }, nf.format(value)),
-      h("div", { class: "note" }, note))));
+      h("div", { class: "label" }, k.label),
+      h("div", { class: "value" }, nf.format(k.value)),
+      h("div", { class: "note" }, k.note))));
 
   // ---------- Origem ----------
   const pace = (a) => {
@@ -475,15 +464,14 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
       h("div", { class: "why" }, a.machine_pace ? "ritmo de máquina" : "ritmo humano"));
   };
   const usersCell = (a) => {
-    if (!a.users.length && !a.accepted_users.length) return h("span", { class: "muted" }, "—");
-    const list = a.users.length ? a.users : a.accepted_users;
-    const shown = list.slice(0, 3).join(", ") + (list.length > 3 ? " +" + (list.length - 3) : "");
-    return h("span", null, nf.format(list.length), h("div", { class: "why mono" }, shown));
+    if (!a.users.length) return h("span", { class: "muted" }, "—");
+    const shown = a.users.slice(0, 3).join(", ") + (a.users.length > 3 ? " +" + (a.users.length - 3) : "");
+    return h("span", null, nf.format(a.users.length), h("div", { class: "why mono" }, shown));
   };
   $("#attackers").append(
     h("thead", null, h("tr", null,
-      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, "Falhas"),
-      h("th", { class: "num" }, "Aceitos"), h("th", null, "Contas"), h("th", null, "Ferramenta provável"),
+      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, L.failed),
+      h("th", { class: "num" }, L.accepted), h("th", null, L.users), h("th", null, "Ferramenta provável"),
       h("th", null, "Intervalo"), h("th", null, "Atividade"))),
     h("tbody", null, D.attackers.map((a) =>
       h("tr", { onclick: () => showIp(a.ip) },
@@ -494,64 +482,77 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
         h("td", null, usersCell(a)),
         h("td", null, a.tool, h("div", { class: "why" }, a.tool_basis)),
         h("td", null, pace(a)),
-        h("td", { class: "mono" }, clock(a.first) + " → " + clock(a.last))
+        h("td", { class: "mono" }, a.period)
       )))
   );
 
   // ---------- Alvo ----------
-  const target = $("#target");
-  const t0 = D.targets[0];
-  const existing = D.accounts.filter((x) => x.exists).map((x) => x.user);
-  const missing = D.accounts.filter((x) => !x.exists).map((x) => x.user);
-  const sessions = D.attackers.filter((a) => a.risk === "critico").flatMap((a) => a.sessions.map((s) => ({ ...s, ip: a.ip })));
-  target.append(
+  const T = D.target;
+  $("#target-sub").textContent = L.target_sub;
+  $("#target").append(
     h("div", { class: "target-host" },
-      h("span", { class: "big" }, t0 ? t0.dst + ":" + t0.port : (D.hosts[0] || "—")),
-      h("span", { class: "tag" }, "SSH"),
-      h("span", { class: "sub" }, "host " + (D.hosts.join(", ") || "—"))),
-    h("dl", { class: "kv" },
-      h("dt", null, "Conexões"),
-      h("dd", null, D.targets.length
-        ? D.targets.map((t) => nf.format(t.connections) + " na porta " + t.port).join(", ")
-        : h("span", { class: "muted" }, "porta não registrada (ative LogLevel VERBOSE)")),
-      h("dt", null, "Contas que existem"),
-      h("dd", null, existing.length ? h("div", { class: "chips" }, existing.map((u) => h("span", { class: "tag mono" }, u))) : "—"),
-      h("dt", null, "Contas inexistentes"),
-      h("dd", null, missing.length
-        ? [h("div", { class: "chips" }, missing.map((u) => h("span", { class: "tag mono" }, u))),
-           h("div", { class: "why" }, "Nomes tirados de listas prontas (wordlists).")]
-        : "—"),
-      h("dt", null, "Sessões do atacante"),
-      h("dd", null, sessions.length
-        ? sessions.map((s) => h("div", null, h("strong", { class: "mono" }, s.user), " aberta às " + clock(s.time) + " por " + s.ip + " ", lineLink(s.n)))
-        : h("span", { class: "muted" }, "nenhuma"))
-    )
+      h("span", { class: "big" }, T.title),
+      h("span", { class: "tag" }, T.tag),
+      h("span", { class: "sub" }, T.sub)),
+    h("dl", { class: "kv" }, T.rows.flatMap((r) => {
+      let value;
+      if (r.chips) value = r.chips.length ? h("div", { class: "chips" }, r.chips.map((c) => h("span", { class: "tag mono" }, c))) : h("span", { class: "muted" }, "—");
+      else if (r.items) value = r.items.length ? r.items.map((it) => h("div", null, it.text + " ", lineLink(it.line))) : h("span", { class: "muted" }, "nenhum");
+      else value = h("span", { class: r.muted ? "muted" : null }, r.text);
+      return [h("dt", null, r.label), h("dd", null, value, r.note ? h("div", { class: "why" }, r.note) : null)];
+    }))
   );
 
-  // ---------- Contas ----------
+  // ---------- Contas / caminhos ----------
+  $("#accounts-title").textContent = L.accounts_title;
+  $("#accounts-sub").textContent = L.accounts_sub;
   const top = D.accounts.slice(0, 10);
-  const maxFail = Math.max(1, ...top.map((x) => x.failed));
+  const maxCount = Math.max(1, ...top.map((x) => x.count));
   $("#accounts").append(...(top.length ? top.map((x) =>
-    h("div", { class: "bar-row", "data-tip": x.user + ": " + plural(x.failed, "falha", "falhas") + "\nde " + x.ips.join(", ") + (x.exists ? "" : "\nconta não existe no servidor") },
-      h("span", { class: "name" }, x.user),
-      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.failed) / maxFail + "%" })),
-      h("span", { class: "val" }, nf.format(x.failed)),
-      h("div", { class: "flags" },
-        x.compromised ? h("span", { class: "badge critico" }, "comprometida") : null,
-        !x.exists ? h("span", { class: "tag" }, "não existe") : null)
-    )) : [h("p", { class: "muted" }, "Nenhuma falha de login.")]));
+    h("div", { class: "bar-row", "data-tip": x.tip },
+      h("span", { class: "name" }, x.name),
+      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.count) / maxCount + "%" })),
+      h("span", { class: "val" }, nf.format(x.count)),
+      h("div", { class: "flags" }, x.flags.map((f) => f.critical ? badge("critico", f.text) : h("span", { class: "tag" }, f.text)))
+    )) : [h("p", { class: "muted" }, L.accounts_empty)]));
+
+  // ---------- Como corrigir ----------
+  function copyButton(text) {
+    const btn = h("button", { type: "button" }, "Copiar");
+    btn.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); btn.textContent = "Copiado"; }
+      catch (_) { btn.textContent = "Selecione e copie"; }
+      setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
+    });
+    return btn;
+  }
+  if (!D.findings.length) {
+    $("#fixes").append(h("p", { class: "muted" }, "Nada para corrigir: nenhum ataque encontrado neste log."));
+  }
+  $("#fixes").append(...D.findings.map((f) => {
+    const code = f.commands.join("\n");
+    return h("div", { class: "fix" },
+      h("div", { class: "item-head" }, badge(f.severity), h("strong", null, f.title),
+        h("span", { class: "muted" }, plural(f.count, "ocorrência", "ocorrências"))),
+      h("p", { class: "sub", style: "margin-top:4px" }, f.why),
+      h("ol", null, f.steps.map((s) => h("li", null, s))),
+      code ? h("div", { class: "code" }, h("pre", null, code), copyButton(code)) : null,
+      h("div", { class: "evidence" }, "IPs:", ...f.ips.slice(0, 6).map(ipButton),
+        f.ips.length > 6 ? " +" + (f.ips.length - 6) : null),
+      f.evidence.length ? h("div", { class: "evidence" }, "Evidência:", ...f.evidence.map(lineLink)) : null
+    );
+  }));
 
   // ---------- Ferramentas ----------
   const tools = {};
-  for (const a of D.attackers) {
-    (tools[a.tool] = tools[a.tool] || []).push(a);
-  }
+  for (const a of D.attackers) (tools[a.tool] = tools[a.tool] || []).push(a);
   $("#tools").append(...Object.entries(tools).map(([tool, list]) =>
     h("div", { class: "item" },
-      h("div", { class: "item-head" }, h("strong", null, tool), ...list.map((a) => badge(a.risk))),
+      h("div", { class: "item-head" }, h("strong", null, tool), ...[...new Set(list.map((a) => a.risk))].map((r) => badge(r))),
       h("p", null, list[0].tool_basis),
-      h("div", { class: "evidence" }, "IPs:", ...list.map((a) => ipButton(a.ip)),
-        ...list.filter((a) => a.software).map((a) => lineLink(a.software.n)))
+      h("div", { class: "evidence" }, "IPs:", ...list.slice(0, 8).map((a) => ipButton(a.ip)),
+        list.length > 8 ? " +" + (list.length - 8) : null,
+        ...list.filter((a) => a.software).slice(0, 3).map((a) => lineLink(a.software.n)))
     )));
 
   // ---------- Técnicas ----------
@@ -561,59 +562,47 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
         h("a", { class: "mitre", href: MITRE_URL(t.id), target: "_blank", rel: "noopener noreferrer" }, t.id),
         h("strong", null, t.name)),
       h("p", null, t.description),
-      h("div", { class: "evidence" }, "IPs:", ...t.ips.map(ipButton)),
+      h("div", { class: "evidence" }, "IPs:", ...t.ips.slice(0, 8).map(ipButton)),
       h("div", { class: "evidence" }, "Evidência:", ...t.evidence.map(lineLink))
     )) : [h("p", { class: "muted item" }, "Nenhuma técnica de ataque identificada.")]));
 
   // ---------- Sequências ----------
-  const chip = (cls, glyph, label) => h("span", { class: "legend-item" }, h("span", { class: "chip " + cls, "aria-hidden": "true", style: "cursor:default" }, glyph), label);
+  $("#seq-intro").textContent = L.seq_intro;
   $("#seq-legend").append(
-    chip("failed", "✕", "Falha"),
-    chip("accepted", "✓", "Login aceito"),
-    chip("accepted crit", "✓", "Aceito após o limite (crítico)"),
-    chip("recon", "?", "Varredura"),
-    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), "Limite de " + D.threshold + " falhas")
+    ...L.legend.map(([cls, label]) => h("span", null, h("span", { class: "chip static " + cls, "aria-hidden": "true" }, GLYPH[cls]), label)),
+    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), L.limit)
   );
   const MAX_CHIPS = 150;
-  $("#sequences").append(...D.attackers.filter((a) => a.sequence.length).map((a) => {
+  const withSeq = D.attackers.filter((a) => a.sequence.length);
+  $("#sequences").append(...(withSeq.length ? withSeq.map((a) => {
     const chips = [];
     for (const s of a.sequence.slice(0, MAX_CHIPS)) {
-      let cls, glyph, label;
-      if (s.k === "recon") { cls = "recon"; glyph = "?"; label = "Varredura: " + s.label; }
-      else if (s.k === "failed") { cls = "failed"; glyph = "✕"; label = "Falha nº " + s.count + " · " + s.user; }
-      else { cls = s.after_limit ? "accepted crit" : "accepted"; glyph = "✓"; label = (s.after_limit ? "ACEITO APÓS O LIMITE · " : "Aceito · ") + s.user; }
+      const cls = s.crit ? "crit" : s.k;
       chips.push(h("button", {
         class: "chip " + cls, type: "button",
-        "aria-label": label + ", linha " + s.n,
-        "data-tip": label + "\n" + s.time + " · linha " + s.n,
+        "aria-label": s.label + ", linha " + s.n,
+        "data-tip": s.label + "\n" + s.time + " · linha " + s.n,
         onclick: () => jumpTo(s.n),
-      }, glyph));
-      if (s.k === "failed" && s.count === D.threshold) {
-        chips.push(h("span", { class: "limit", "data-tip": "Limite de " + D.threshold + " falhas atingido" }, h("span", null, "limite")));
+      }, GLYPH[cls]));
+      if (s.count === D.threshold) {
+        chips.push(h("span", { class: "limit", "data-tip": L.limit + " atingido" }, h("span", null, "limite")));
       }
     }
     const extra = a.sequence.length - MAX_CHIPS;
     return h("div", { class: "seq-row" },
       h("div", { class: "seq-who" }, ipButton(a.ip), badge(a.risk)),
       h("div", null,
-        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + extra) : null),
+        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + nf.format(extra)) : null),
         h("div", { class: "seq-sum" },
-          plural(a.failed, "falha", "falhas") + " · " + plural(a.accepted, "aceito", "aceitos") +
-          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre tentativas" : "")))
+          plural(a.failed, ...L.failed_unit) + " · " + plural(a.accepted, ...L.accepted_unit) +
+          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre eventos" : "")))
     );
-  }));
+  }) : [h("p", { class: "muted" }, "Nenhum evento suspeito.")]));
 
   // ---------- Log ----------
-  const KIND_GROUPS = [
-    ["all", "Todas", () => true],
-    ["failed", "Falhas", (k) => k === "failed" || k === "invalid_user"],
-    ["accepted", "Aceitos e sessões", (k) => k === "accepted" || k === "session"],
-    ["recon", "Varreduras", (k) => k === "recon"],
-    ["client", "Banner do cliente", (k) => k === "client"],
-  ];
   const state = { kind: "all", ip: "", q: "" };
   const kindFilter = $("#kind-filter");
-  for (const [key, label] of KIND_GROUPS) {
+  for (const [key, label] of D.log_filters) {
     kindFilter.append(h("button", { type: "button", "data-kind": key, "aria-pressed": String(key === state.kind),
       onclick: () => { state.kind = key; renderLog(); } }, label));
   }
@@ -627,19 +616,20 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     searchTimer = setTimeout(() => { state.q = search.value.trim().toLowerCase(); renderLog(); }, 120);
   });
 
-  const TOKEN = /(\b\d{1,3}(?:\.\d{1,3}){3}\b)|\b(Failed|Accepted|Invalid user)\b/g;
+  // IPs clicáveis: só os IPs analisados (v4 e v6), casados por inteiro.
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const ipAlternatives = Object.keys(byIp).sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+  const KEYWORDS = "Failed|Accepted|Invalid user|GET|POST|PUT|DELETE|HEAD";
+  const TOKEN = new RegExp(
+    (ipAlternatives ? "(?<![\\w:.])(" + ipAlternatives + ")(?![\\w:])|" : "()") + "\\b(" + KEYWORDS + ")\\b", "g");
   function highlight(text) {
     const out = [];
     let last = 0;
     for (const m of text.matchAll(TOKEN)) {
+      if (!m[0]) continue;
       if (m.index > last) out.push(text.slice(last, m.index));
-      if (m[1] && byIp[m[1]]) {
-        out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
-      } else if (m[2]) {
-        out.push(h("span", { class: "hl-kw" }, m[2]));
-      } else {
-        out.push(m[0]);
-      }
+      if (m[1]) out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
+      else out.push(h("span", { class: "hl-kw" }, m[2]));
       last = m.index + m[0].length;
     }
     out.push(text.slice(last));
@@ -652,11 +642,12 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     const ip = e.target.closest(".hl-ip");
     if (ip) showIp(ip.dataset.ip, false);
   });
-  function matches(rec) {
-    const group = KIND_GROUPS.find((g) => g[0] === state.kind);
-    if (!group[2](rec.k)) return false;
-    if (state.ip && rec.ip !== state.ip) return false;
-    if (state.q && !rec.t.toLowerCase().includes(state.q)) return false;
+  const filterKinds = Object.fromEntries(D.log_filters.map(([key, , kinds]) => [key, new Set(kinds)]));
+  function matches([, k, t, ip]) {
+    const kinds = filterKinds[state.kind];
+    if (kinds.size && !kinds.has(k)) return false;
+    if (state.ip && ip !== state.ip) return false;
+    if (state.q && !t.toLowerCase().includes(state.q)) return false;
     return true;
   }
   function renderLog() {
@@ -664,17 +655,17 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     ipFilter.value = state.ip;
     const rows = D.lines.filter(matches);
     const shown = rows.slice(0, MAX_ROWS);
-    logEl.replaceChildren(...shown.map((rec) => {
-      const crit = rec.k === "accepted" && critLines.has(rec.n);
-      return h("div", { class: "log-row", id: "L" + rec.n },
-        h("span", { class: "ln" }, rec.n),
-        h("span", { class: "k " + rec.k + (crit ? " crit" : "") }, crit ? "ACEITO ⚠" : KIND[rec.k]),
-        h("span", { class: "txt" }, highlight(rec.t)));
+    logEl.replaceChildren(...shown.map(([n, k, t]) => {
+      const crit = critLines.has(n);
+      return h("div", { class: "log-row", id: "L" + n },
+        h("span", { class: "ln" }, n),
+        h("span", { class: "k " + k + (crit ? " crit" : "") }, crit ? "CRÍTICO" : (D.kind_labels[k] || "")),
+        h("span", { class: "txt" }, highlight(t)));
     }));
     if (!shown.length) logEl.append(h("div", { class: "log-row" }, h("span"), h("span"), h("span", { class: "muted" }, "Nenhuma linha com esses filtros.")));
     $("#log-count").textContent = "Mostrando " + nf.format(shown.length) + " de " + plural(rows.length, "linha", "linhas") +
-      (rows.length !== D.lines.length ? " (" + nf.format(D.lines.length) + " no arquivo)" : "") +
-      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto" : "");
+      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto." : ".") +
+      (D.lines_note ? " " + D.lines_note : "");
   }
 
   function showIp(ip, scroll = true) {
@@ -704,11 +695,11 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
   const tip = $("#tip");
   function placeTip(x, y) {
     const pad = 12, r = tip.getBoundingClientRect();
-    let left = x + pad, top = y + pad;
+    let left = x + pad, topY = y + pad;
     if (left + r.width > innerWidth - 8) left = x - r.width - pad;
-    if (top + r.height > innerHeight - 8) top = y - r.height - pad;
+    if (topY + r.height > innerHeight - 8) topY = y - r.height - pad;
     tip.style.left = Math.max(8, left) + "px";
-    tip.style.top = Math.max(8, top) + "px";
+    tip.style.top = Math.max(8, topY) + "px";
   }
   function showTip(target, x, y) {
     tip.textContent = target.dataset.tip;

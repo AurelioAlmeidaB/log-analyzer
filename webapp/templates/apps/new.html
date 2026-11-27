@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Nova aplicação{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Nova aplicação</h1><p class="sub">Você recebe uma chave para o agente enviar os logs.</p></div></div>
+<div class="card">
+  {% if error %}<div class="alert error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('monitor.new_app') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="name">Nome</label>
+      <input id="name" name="name" type="text" maxlength="80" required value="{{ form.name }}" placeholder="Ex.: servidor de produção, loja online" autofocus>
+    </div>
+    <fieldset class="field plain">
+      <legend><strong>Que log vai ser monitorado?</strong></legend>
+      <div class="radio-cards field">
+        <label><input type="radio" name="kind" value="ssh" {% if form.kind == 'ssh' %}checked{% endif %}>
+          <span><strong>Servidor Linux (SSH)</strong><span class="muted">/var/log/auth.log: brute force, contas atacadas, logins depois de ataque.</span></span></label>
+        <label><input type="radio" name="kind" value="web" {% if form.kind == 'web' %}checked{% endif %}>
+          <span><strong>Site ou API (nginx / Apache)</strong><span class="muted">access.log: SQL injection, XSS, path traversal, arquivos expostos, varreduras.</span></span></label>
+      </div>
+    </fieldset>
+    <div class="field">
+      <label for="threshold">Limite de falhas para brute force</label>
+      <input id="threshold" name="threshold" type="number" min="1" max="100" required value="{{ form.threshold }}">
+      <p class="hint">Quantas senhas erradas seguidas do mesmo IP contam como ataque. O padrão é 5.</p>
+    </div>
+    <div class="actions field">
+      <button class="btn primary" type="submit">Criar aplicação</button>
+      <a class="btn" href="{{ url_for('monitor.index') }}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

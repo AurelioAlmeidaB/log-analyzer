@@ -1,0 +1,4 @@
+# Só a aplicação web precisa disto. O analisador (log_analyzer.py, dashboard.py)
+# e o agente (agent.py) usam apenas a biblioteca padrão do Python.
+Flask>=3.0,<4
+segno>=1.6        # QR code do 2FA; sem ele, a pessoa digita a chave no app

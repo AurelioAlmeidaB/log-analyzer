@@ -10,6 +10,8 @@ Responde três perguntas:
 Uso:
     python log_analyzer.py sample_auth.log
     python log_analyzer.py sample_auth.log --html dashboard.html
+    python log_analyzer.py sample_access.log            # nginx/Apache: detectado sozinho
+    python log_analyzer.py sample_auth.log --limite 10 --json
 
 Python puro (só biblioteca padrão). Use apenas em logs seus ou de laboratório.
 """
@@ -17,9 +19,11 @@ Python puro (só biblioteca padrão). Use apenas em logs seus ou de laboratório
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections import Counter
+from typing import Iterable
 
 DEFAULT_THRESHOLD = 5
 
@@ -76,17 +80,22 @@ def repeat_count(line: str) -> int:
 # --- Passo 2: carregar eventos ------------------------------------------------
 
 
-def load_events(path: str) -> list[dict]:
-    """Lê o arquivo NA ORDEM e devolve a lista de eventos de login."""
+def events_from_lines(lines: Iterable[str]) -> list[dict]:
+    """Eventos de login NA ORDEM em que aparecem nas linhas."""
     events = []
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            event = parse_line(line)
-            if event is None:
-                continue
-            for _ in range(repeat_count(line)):
-                events.append(dict(event))
+    for line in lines:
+        event = parse_line(line)
+        if event is None:
+            continue
+        for _ in range(repeat_count(line)):
+            events.append(dict(event))
     return events
+
+
+def load_events(path: str) -> list[dict]:
+    """Lê o arquivo na ordem e devolve a lista de eventos de login."""
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return events_from_lines(f)
 
 
 # --- Passo 3: contagens -------------------------------------------------------
@@ -109,25 +118,45 @@ def detect_bruteforce(failures_by_ip: Counter, threshold: int = DEFAULT_THRESHOL
 
 
 def detect_success_after_failures(events: list[dict], threshold: int = DEFAULT_THRESHOLD) -> list[dict]:
-    """IPs que atingiram o limite de falhas e DEPOIS tiveram login aceito. Severidade: crítica.
+    """Logins aceitos depois de >= limite falhas SEGUIDAS do mesmo IP. Severidade: crítica.
 
     Os eventos precisam estar na ordem do log: só a contagem total não diz se
-    o sucesso veio antes ou depois das falhas.
+    o sucesso veio antes ou depois das falhas. O contador volta a zero a cada
+    login aceito; senão um usuário que erra a senha duas vezes por dia viraria
+    "atacante" no terceiro dia de um log longo.
     """
-    failures_so_far = Counter()
+    failures_since_success = Counter()
     alerts = []
     for event in events:
         ip = event["ip"]
         if event["status"] == "failed":
-            failures_so_far[ip] += 1
-        elif failures_so_far[ip] >= threshold:
+            failures_since_success[ip] += 1
+            continue
+        if failures_since_success[ip] >= threshold:
             alerts.append({
                 "ip": ip,
                 "user": event["user"],
-                "failures": failures_so_far[ip],
+                "failures": failures_since_success[ip],
                 "time": event["time"],
             })
+        failures_since_success[ip] = 0
     return alerts
+
+
+def group_alerts_by_ip(alerts: list[dict]) -> list[dict]:
+    """Junta os alertas do mesmo IP: {"ip", "count", "users", "max_failures", "first", "last"}."""
+    grouped = {}
+    for a in alerts:
+        g = grouped.setdefault(a["ip"], {
+            "ip": a["ip"], "count": 0, "users": [], "max_failures": 0,
+            "first": a["time"], "last": a["time"],
+        })
+        g["count"] += 1
+        g["max_failures"] = max(g["max_failures"], a["failures"])
+        g["last"] = a["time"]
+        if a["user"] not in g["users"]:
+            g["users"].append(a["user"])
+    return list(grouped.values())
 
 
 # --- Passo 5: relatório -------------------------------------------------------
@@ -147,10 +176,15 @@ def build_report(events: list[dict], threshold: int = DEFAULT_THRESHOLD, top: in
     alerts = detect_success_after_failures(events, threshold)
     if alerts:
         lines.append("🚨 ALERTA: login aceito após falhas")
-        for a in alerts:
-            lines.append(
-                f'   {a["ip"]}  ({a["failures"]} falhas, depois sucesso como "{a["user"]}" em {a["time"]})'
-            )
+        for g in group_alerts_by_ip(alerts):
+            users = ", ".join(f'"{u}"' for u in g["users"])
+            if g["count"] == 1:
+                lines.append(f'   {g["ip"]}  ({g["max_failures"]} falhas, depois sucesso como {users} em {g["last"]})')
+            else:
+                lines.append(
+                    f'   {g["ip"]}  ({g["count"]} logins aceitos após falhas, até {g["max_failures"]} '
+                    f'falhas seguidas, como {users}; último em {g["last"]})'
+                )
     else:
         lines.append("✅ Nenhum login aceito após falhas")
     lines.append("")
@@ -174,29 +208,69 @@ def build_report(events: list[dict], threshold: int = DEFAULT_THRESHOLD, top: in
     return "\n".join(lines)
 
 
+# --- Tipo do log ----------------------------------------------------------------
+
+
+def detect_kind(lines: Iterable[str], sample: int = 300) -> str:
+    """"ssh" (auth.log) ou "web" (access.log do nginx/Apache), olhando as primeiras linhas."""
+    from web_log_analyzer import parse_request_line
+
+    ssh = web = 0
+    for i, line in enumerate(lines):
+        if i >= sample:
+            break
+        if "sshd" in line:
+            ssh += 1
+        elif parse_request_line(line):
+            web += 1
+    return "web" if web > ssh else "ssh"
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Analisa logs de autenticação SSH (auth.log).")
-    parser.add_argument("logfile", help="arquivo de log, ex.: /var/log/auth.log")
+    parser = argparse.ArgumentParser(description="Analisa logs de autenticação SSH (auth.log) e de servidores web.")
+    parser.add_argument("logfile", help="arquivo de log, ex.: /var/log/auth.log ou /var/log/nginx/access.log")
     parser.add_argument("--html", metavar="ARQUIVO", help="gera também um dashboard HTML")
+    parser.add_argument("--tipo", choices=["auto", "ssh", "web"], default="auto",
+                        help="formato do log (padrão: detectar sozinho)")
+    parser.add_argument("--limite", type=int, default=DEFAULT_THRESHOLD, metavar="N",
+                        help=f"falhas para considerar brute force (padrão: {DEFAULT_THRESHOLD})")
+    parser.add_argument("--json", action="store_true", help="imprime a análise completa em JSON")
     args = parser.parse_args(argv)
+    if args.limite < 1:
+        parser.error("--limite precisa ser 1 ou mais")
 
     # Evita erro de encoding com os emojis quando a saída vai para um arquivo no Windows.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
 
     try:
-        events = load_events(args.logfile)
+        with open(args.logfile, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
     except OSError as err:
         print(f"Erro ao ler {args.logfile}: {err}", file=sys.stderr)
         return 1
 
-    print(build_report(events))
+    kind = detect_kind(lines) if args.tipo == "auto" else args.tipo
+
+    if args.json:
+        from dashboard import analyze_lines
+
+        data = analyze_lines(lines, kind=kind, threshold=args.limite, source=args.logfile)
+        data.pop("lines")
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+    elif kind == "web":
+        from web_log_analyzer import build_web_report
+
+        print(build_web_report(lines, args.limite))
+    else:
+        print(build_report(events_from_lines(lines), args.limite))
 
     if args.html:
         from dashboard import write_dashboard
 
-        write_dashboard(args.logfile, args.html)
-        print(f"\n📊 Dashboard salvo em {args.html}")
+        write_dashboard(args.logfile, args.html, threshold=args.limite, kind=kind)
+        if not args.json:
+            print(f"\n📊 Dashboard salvo em {args.html}")
     return 0
 
 

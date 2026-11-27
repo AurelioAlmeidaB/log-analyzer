@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Aplicações{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Aplicações</h1>
+    <p class="sub">Cada aplicação recebe os logs de um servidor ou site e mostra os ataques.</p>
+  </div>
+  {% if apps %}<a class="btn primary" href="{{ url_for('monitor.new_app') }}">Nova aplicação</a>{% endif %}
+</div>
+{% if apps %}
+<div class="grid">
+  {% for app, summary in apps %}
+  <a class="card app-card" href="{{ url_for('monitor.detail', app_id=app.id) }}">
+    <div class="actions"><span class="tag">{{ 'SSH' if app.kind == 'ssh' else 'Web' }}</span>
+      {% if summary.lines %}<span class="badge {{ summary.level }}">{{ {'critico': 'Crítico', 'alto': 'Alto', 'medio': 'Médio', 'baixo': 'Baixo'}[summary.level] }}</span>{% endif %}</div>
+    <h2>{{ app.name }}</h2>
+    {% if summary.lines %}
+      <p>{{ summary.title }}</p>
+      {% if summary.findings %}<p class="muted">{{ summary.findings|join(" · ") }}</p>{% endif %}
+      <p class="meta">{{ summary.lines }} linhas · {{ summary.ips }} IPs · último envio {{ app.last_received_at or "—" }} UTC</p>
+    {% else %}
+      <p class="muted">Ainda sem logs. Envie um arquivo ou ligue o agente.</p>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+  <h2>Nenhuma aplicação ainda</h2>
+  <p>Crie uma aplicação para cada servidor ou site. Depois envie um arquivo de log ou ligue o agente para monitorar o tempo todo.</p>
+  <a class="btn primary" href="{{ url_for('monitor.new_app') }}">Criar a primeira aplicação</a>
+</div>
+{% endif %}
+{% endblock %}

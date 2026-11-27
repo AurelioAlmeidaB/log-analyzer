@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Código de verificação{% endblock %}
+{% block body %}
+<main class="auth">
+  <div class="card">
+    <h1>Código de verificação</h1>
+    <p class="sub">Abra o app autenticador no celular e digite o código do Log Analyzer.</p>
+    {% if error %}<div class="alert error field" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ url_for('auth.verify_2fa') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="code">Código de 6 dígitos</label>
+        <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus>
+      </div>
+      <button class="btn primary block" type="submit">Entrar</button>
+    </form>
+    <details class="field">
+      <summary>Perdeu o celular? Use um código de recuperação</summary>
+      <form method="post" action="{{ url_for('auth.verify_2fa') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="recovery">Código de recuperação</label>
+        <input id="recovery" name="code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxxx-xxxxx" maxlength="11" required>
+        <button class="btn block" type="submit">Entrar com código de recuperação</button>
+      </form>
+    </details>
+  </div>
+  <p class="foot"><a href="{{ url_for('auth.login') }}">Voltar</a></p>
+</main>
+{% endblock %}

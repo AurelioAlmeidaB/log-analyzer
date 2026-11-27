@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Log Analyzer{% endblock %} · Log Analyzer</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="{{ url_for('monitor.index') }}"><span class="brand-mark" aria-hidden="true">LA</span> Log Analyzer</a>
+    {% if g.user %}
+    <nav class="nav" aria-label="Principal">
+      <a href="{{ url_for('monitor.index') }}" {% if request.blueprint == 'monitor' %}aria-current="page"{% endif %}>Aplicações</a>
+      <a href="{{ url_for('auth.account') }}" {% if request.endpoint == 'auth.account' %}aria-current="page"{% endif %}>Conta</a>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Sair</button>
+      </form>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+{% block body %}
+<main class="page">
+  {% include "_messages.html" %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+</body>
+</html>

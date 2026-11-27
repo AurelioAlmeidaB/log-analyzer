@@ -1,10 +1,14 @@
-"""Testes do analisador. Rodar com:  python -m unittest -v"""
+"""Testes do analisador SSH e do dashboard. Rodar na raiz do projeto:  python -m unittest -v"""
 
+import contextlib
+import io
+import json
 import os
 import tempfile
 import unittest
 
 import dashboard
+import log_analyzer
 from log_analyzer import (
     build_report,
     count_failures_by_ip,
@@ -15,8 +19,8 @@ from log_analyzer import (
     parse_line,
 )
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE = os.path.join(HERE, "sample_auth.log")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SAMPLE = os.path.join(ROOT, "sample_auth.log")
 
 
 def ev(ip, status, user="root", time="Nov 22 00:00:00"):
@@ -204,10 +208,16 @@ class TestDashboard(unittest.TestCase):
         self.assertEqual(self.data["targets"][0]["port"], "22")
 
     def test_accounts_exist_or_not(self):
-        accounts = {a["user"]: a for a in self.data["accounts"]}
-        self.assertTrue(accounts["root"]["exists"])
-        self.assertTrue(accounts["root"]["compromised"])
-        self.assertFalse(accounts["admin"]["exists"])
+        flags = {a["name"]: [f["text"] for f in a["flags"]] for a in self.data["accounts"]}
+        self.assertEqual(flags["root"], ["comprometida"])
+        self.assertEqual(flags["admin"], ["não existe"])
+        self.assertEqual(flags["maria"], [])
+
+    def test_findings_have_remediation(self):
+        types = [f["type"] for f in self.data["findings"]]
+        self.assertEqual(types[0], "ssh_compromise")       # o mais grave primeiro
+        self.assertIn("ssh_bruteforce", types)
+        self.assertTrue(all(f["steps"] for f in self.data["findings"]))
 
     def test_html_escapes_attacker_controlled_text(self):
         # O nome de usuário vem do atacante e não pode virar código no dashboard.
@@ -219,6 +229,124 @@ class TestDashboard(unittest.TestCase):
         html = dashboard.render_html(dashboard.analyze(path))
         self.assertNotIn("<script>alert(1)", html)
         self.assertEqual(html.count("</script>"), 2)  # só os dois blocos do próprio template
+
+    def test_nonce_for_csp(self):
+        html = dashboard.render_html(self.data, nonce="abc123")
+        self.assertIn('<script nonce="abc123">', html)
+        self.assertIn('<style nonce="abc123">', html)
+        self.assertNotIn("__NONCE_ATTR__", dashboard.render_html(self.data))
+
+
+# --- Correções dos problemas achados no teste de volume ---------------------------------
+
+
+def repeat_sample(times):
+    with open(SAMPLE, encoding="utf-8") as f:
+        text = f.read()
+    return write_temp_log(text * times)
+
+
+class TestLongLogRegressions(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.path = repeat_sample(50)
+        cls.events = load_events(cls.path)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.remove(cls.path)
+
+    def test_legit_user_is_not_flagged_after_many_days(self):
+        # Problema 1: maria erra 2 vezes por "dia"; o contador acumulado a marcava no 3º dia.
+        alerts = detect_success_after_failures(self.events)
+        self.assertEqual({a["ip"] for a in alerts}, {"203.0.113.5"})
+        self.assertEqual(len(alerts), 50)
+        self.assertTrue(all(a["failures"] == 12 for a in alerts))
+
+    def test_counter_resets_after_success(self):
+        events = [ev("1.1.1.1", "failed")] * 4 + [ev("1.1.1.1", "accepted")] + [ev("1.1.1.1", "failed")] * 4 \
+            + [ev("1.1.1.1", "accepted")]
+        self.assertEqual(detect_success_after_failures(events), [])
+
+    def test_report_groups_alerts_by_ip(self):
+        # Problema 2: uma linha por alerta inundava o terminal.
+        report = build_report(self.events)
+        self.assertEqual(report.count("203.0.113.5  ("), 1)
+        self.assertIn("50 logins aceitos após falhas", report)
+
+    def test_dashboard_size_is_capped(self):
+        # Problema 3: o HTML guardava todas as linhas.
+        original = dashboard.MAX_EMBEDDED_LINES
+        dashboard.MAX_EMBEDDED_LINES = 1000
+        try:
+            data = dashboard.analyze(self.path)
+        finally:
+            dashboard.MAX_EMBEDDED_LINES = original
+        self.assertLessEqual(len(data["lines"]), 1000 + len(data["critical_lines"]))
+        self.assertIn("O painel mostra", data["lines_note"])
+        embedded = {line[0] for line in data["lines"]}
+        self.assertTrue(set(data["critical_lines"]) <= embedded)   # alertas nunca ficam de fora
+
+
+class TestIPv6AndFormats(unittest.TestCase):
+    LOG = (
+        '2026-11-27T03:10:01.120000-03:00 lab02 sshd-session[5001]: Connection from 2001:db8:bad::7 port 51000 '
+        'on 2001:db8::1 port 22 rdomain ""\n'
+        "2026-11-27T03:10:02.000000-03:00 lab02 sshd-session[5001]: Failed password for admin from "
+        "2001:db8:bad::7 port 51000 ssh2\n"
+        "2026-11-27T03:10:07.000000-03:00 lab02 sshd-session[5001]: message repeated 5 times: [ Failed password "
+        "for admin from 2001:db8:bad::7 port 51000 ssh2]\n"
+        "2026-11-27T03:10:10.000000-03:00 lab02 sshd-session[5002]: Accepted password for admin from "
+        "2001:db8:bad::7 port 51002 ssh2\n"
+        "2026-11-27T01:00:00.000001-03:00 lab02 sshd[800]: Server listening on 0.0.0.0 port 22.\n"
+    )
+
+    def setUp(self):
+        self.path = write_temp_log(self.LOG)
+        self.addCleanup(os.remove, self.path)
+        self.data = dashboard.analyze(self.path)
+
+    def test_ipv6_target_uses_brackets(self):
+        # Problema 4: "2001:db8::1:22" não deixava ver onde terminava o IP.
+        self.assertEqual(self.data["target"]["title"], "[2001:db8::1]:22")
+
+    def test_ipv6_attacker_detected(self):
+        self.assertEqual([a["ip"] for a in self.data["alerts"]], ["2001:db8:bad::7"])
+
+    def test_server_listening_is_not_an_attacker(self):
+        self.assertNotIn("0.0.0.0", [a["ip"] for a in self.data["attackers"]])
+
+    def test_iso_dates_are_readable(self):
+        # Problema 5: datas ISO longas no cabeçalho.
+        self.assertIn("27/11/2026 03:10:01", " ".join(self.data["meta"]))
+
+
+class TestCli(unittest.TestCase):
+    def run_cli(self, *args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = log_analyzer.main(list(args))
+        return code, out.getvalue()
+
+    def test_threshold_option(self):
+        code, out = self.run_cli(SAMPLE, "--limite", "13")
+        self.assertEqual(code, 0)
+        self.assertIn("Nenhum login aceito após falhas", out)   # 12 falhas < 13
+
+    def test_json_option(self):
+        code, out = self.run_cli(SAMPLE, "--json")
+        data = json.loads(out)
+        self.assertEqual(data["totals"]["events"], 23)
+        self.assertNotIn("lines", data)
+
+    def test_detects_web_log(self):
+        code, out = self.run_cli(os.path.join(ROOT, "sample_access.log"))
+        self.assertIn("RELATÓRIO DE ANÁLISE DE LOG (WEB)", out)
+
+    def test_missing_file(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            code, _ = self.run_cli("nao_existe.log")
+        self.assertEqual(code, 1)
 
 
 if __name__ == "__main__":

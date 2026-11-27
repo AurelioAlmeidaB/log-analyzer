@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel de Ataques SSH</title>
+<title>Painel de Ataques</title>
 <style>
 :root {
   color-scheme: light;
@@ -24,6 +24,7 @@
   --critical: #d03b3b;
   --crit-wash: rgba(208, 59, 59, 0.07);
   --good-wash: rgba(12, 163, 12, 0.07);
+  --warn-wash: rgba(250, 178, 25, 0.10);
   --recon: #c3c2b7;
   --flash: rgba(42, 120, 214, 0.16);
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -45,6 +46,7 @@
     --link: #86b6ef;
     --crit-wash: rgba(208, 59, 59, 0.14);
     --good-wash: rgba(12, 163, 12, 0.12);
+    --warn-wash: rgba(250, 178, 25, 0.12);
     --recon: #5d5c57;
     --flash: rgba(57, 135, 229, 0.24);
   }
@@ -64,6 +66,7 @@
   --link: #86b6ef;
   --crit-wash: rgba(208, 59, 59, 0.14);
   --good-wash: rgba(12, 163, 12, 0.12);
+  --warn-wash: rgba(250, 178, 25, 0.12);
   --recon: #5d5c57;
   --flash: rgba(57, 135, 229, 0.24);
 }
@@ -88,8 +91,10 @@ p { margin: 0; }
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
 .top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.top > div { min-width: 0; }
+.back { display: inline-block; margin-bottom: 10px; font-size: 13px; }
 .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-.meta { color: var(--ink-2); margin-top: 6px; }
+.meta { color: var(--ink-2); margin-top: 6px; overflow-wrap: anywhere; }
 .meta span + span::before { content: "·"; margin: 0 8px; color: var(--muted); }
 
 button {
@@ -101,6 +106,7 @@ button:hover { background: var(--surface-2); }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--series-1); outline-offset: 2px;
 }
+#theme { white-space: nowrap; flex-shrink: 0; }
 
 .card {
   background: var(--surface);
@@ -117,9 +123,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Veredito */
 .verdict { border-left: 4px solid var(--critical); background: var(--crit-wash); }
-.verdict.ok { border-left-color: var(--good); background: var(--good-wash); }
+.verdict.alto, .verdict.medio { border-left-color: var(--serious); background: var(--warn-wash); }
+.verdict.baixo { border-left-color: var(--good); background: var(--good-wash); }
 .verdict h2 { font-size: 18px; margin: 8px 0 6px; }
-.verdict p { color: var(--ink-2); max-width: 80ch; }
+.verdict p { color: var(--ink-2); max-width: 80ch; overflow-wrap: anywhere; }
 .verdict .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Badges de risco: ponto colorido + texto (cor nunca sozinha) */
@@ -157,67 +164,77 @@ tbody tr:hover { background: var(--surface-2); }
 .ip-link {
   font-family: var(--mono); font-size: 12.5px; color: var(--link);
   background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  white-space: nowrap; text-align: left;
 }
+.seq-who .ip-link { white-space: normal; overflow-wrap: anywhere; }
 .ip-link:hover { background: none; }
-.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; }
+.why { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 42ch; overflow-wrap: anywhere; }
 
 /* Barras horizontais */
 .bars { display: grid; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: minmax(60px, 90px) 1fr 24px 112px; gap: 10px; align-items: center; min-height: 24px; }
+.bar-row { display: grid; grid-template-columns: minmax(60px, 140px) 1fr 28px minmax(0, 150px); gap: 10px; align-items: center; min-height: 24px; }
 .bar-row .name { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { position: relative; height: 20px; display: flex; align-items: center; }
 .bar-track::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; border-left: 1px solid var(--axis); }
 .bar { height: 10px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 3px; }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.bar-row .flags { display: flex; gap: 6px; }
+.bar-row .flags { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Alvo */
 .target-host { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.target-host .big { font-family: var(--mono); font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin-top: 14px; }
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; }
+.kv dd { margin: 0; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Ferramentas e técnicas */
+/* Ferramentas, técnicas e correções */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .item { padding: 12px 0; border-top: 1px solid var(--grid); }
 .item:first-of-type { border-top: 0; }
 .item-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .item-head strong { font-size: 14px; }
-.item p { color: var(--ink-2); margin-top: 4px; }
+.item p { color: var(--ink-2); margin-top: 4px; overflow-wrap: anywhere; }
 .evidence { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
 .line-link {
   font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 6px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--link);
 }
 .mitre { font-family: var(--mono); font-size: 12px; }
+.fix { padding: 16px 0; border-top: 1px solid var(--grid); }
+.fix:first-child { border-top: 0; padding-top: 0; }
+.fix ol { margin: 10px 0 0; padding-left: 20px; color: var(--ink); }
+.fix li { margin: 4px 0; }
+.code { position: relative; margin-top: 10px; }
+.code pre {
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  font: 12px/1.6 var(--mono); overflow-x: auto; white-space: pre;
+}
+.code button { position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 12px; }
 
 /* Sequência por IP */
 .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-2); font-size: 12.5px; margin-bottom: 14px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .seq-row { display: grid; grid-template-columns: 190px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); align-items: start; }
 .seq-row:first-of-type { border-top: 0; }
-.seq-who { display: grid; gap: 4px; justify-items: start; }
+.seq-who { display: grid; gap: 4px; justify-items: start; min-width: 0; }
 .seq { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
 .chip {
   width: 20px; height: 20px; border-radius: 4px; border: 0; padding: 0;
   display: inline-grid; place-items: center;
   font: 700 11px/1 var(--sans); color: #0b0b0b; cursor: pointer;
 }
-.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; background-image: none; }
-.chip.failed { background: var(--serious); }
-.chip.failed:hover { background: var(--serious); }
-.chip.accepted { background: var(--good); }
-.chip.accepted:hover { background: var(--good); }
-.chip.crit { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
-.chip.crit:hover { background: var(--critical); }
-.chip.recon { background: var(--recon); color: var(--ink); }
-.chip.recon:hover { background: var(--recon); }
+.chip:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.chip.failed, .chip.failed:hover { background: var(--serious); }
+.chip.accepted, .chip.accepted:hover { background: var(--good); }
+.chip.warn, .chip.warn:hover { background: var(--warning); }
+.chip.crit, .chip.crit:hover { background: var(--critical); color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--critical); margin: 0 4px; }
+.chip.recon, .chip.recon:hover { background: var(--recon); color: var(--ink); }
+.chip.static { cursor: default; }
 .limit { display: inline-flex; flex-direction: column; align-items: center; margin: 0 4px; height: 30px; justify-content: center; }
 .limit::before { content: ""; width: 2px; flex: 1; background: var(--ink); }
 .limit span { font-size: 10px; color: var(--ink-2); line-height: 1; margin-top: 2px; }
-.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; grid-column: 2; }
+.seq-sum { color: var(--muted); font-size: 12px; margin-top: 6px; }
 
 /* Log */
 .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
@@ -226,7 +243,7 @@ tbody tr:hover { background: var(--surface-2); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 select, input[type="search"] {
   font: inherit; color: var(--ink); background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 0; max-width: 100%;
 }
 input[type="search"] { flex: 1 1 200px; }
 .count { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
@@ -235,17 +252,18 @@ input[type="search"] { flex: 1 1 200px; }
   background: var(--surface-2); border-radius: 8px; padding: 6px 0;
   max-height: 560px; overflow: auto;
 }
-.log-row { display: grid; grid-template-columns: 40px 92px 1fr; gap: 10px; padding: 2px 12px; }
+.log-row { display: grid; grid-template-columns: 48px 104px 1fr; gap: 10px; padding: 2px 12px; }
 .log-row:hover { background: var(--flash); }
 .log-row.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { from { background: var(--flash); box-shadow: inset 3px 0 0 var(--series-1); } to { background: transparent; } }
 .log-row .ln { color: var(--muted); text-align: right; user-select: none; }
 .log-row .txt { white-space: pre-wrap; word-break: break-word; }
 .k { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); white-space: nowrap; }
-.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); }
-.k.failed, .k.invalid_user { --kc: var(--serious); }
-.k.accepted, .k.session { --kc: var(--good); }
-.k.accepted.crit { --kc: var(--critical); color: var(--ink); }
+.k::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--kc, transparent); flex-shrink: 0; }
+.k.failed, .k.invalid_user, .k.attack, .k.login_fail { --kc: var(--serious); }
+.k.attack_ok { --kc: var(--warning); }
+.k.accepted, .k.session, .k.login_ok { --kc: var(--good); }
+.k.crit { --kc: var(--critical); color: var(--ink); }
 .k.recon { --kc: var(--recon); }
 .k.client { --kc: var(--series-1); }
 .hl-kw { font-weight: 700; }
@@ -254,9 +272,9 @@ input[type="search"] { flex: 1 1 200px; }
 footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid; gap: 6px; }
 
 #tip {
-  position: fixed; z-index: 10; pointer-events: none; max-width: 320px;
+  position: fixed; z-index: 10; pointer-events: none; max-width: 340px;
   background: var(--ink); color: var(--surface); border-radius: 8px;
-  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line;
+  padding: 7px 10px; font-size: 12.5px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere;
   box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
 }
 #tip[hidden] { display: none; }
@@ -264,17 +282,18 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 @media (max-width: 860px) {
   .grid-2, .split { grid-template-columns: 1fr; }
   .seq-row { grid-template-columns: 1fr; }
-  .seq-sum { grid-column: 1; }
 }
 @media (max-width: 560px) {
   .top { flex-direction: column; }
-  .bar-row { grid-template-columns: minmax(60px, 90px) 1fr 24px; }
+  .bar-row { grid-template-columns: minmax(60px, 110px) 1fr 28px; }
   .bar-row .flags { grid-column: 2 / 4; }
   .bar-row .flags:empty { display: none; }
-  .log-row { grid-template-columns: 30px 1fr; }
+  .log-row { grid-template-columns: 36px 1fr; }
   .log-row .k { grid-column: 2; }
   .log-row .txt { grid-column: 1 / 3; }
   .kpi .value { font-size: 24px; }
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv dd { margin-bottom: 8px; }
 }
 @media (forced-colors: active) {
   .chip, .badge::before, .k::before { forced-color-adjust: none; }
@@ -285,7 +304,8 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 <div class="wrap">
   <header class="top">
     <div>
-      <p class="eyebrow">Analisador de logs SSH</p>
+      <div id="nav"></div>
+      <p class="eyebrow" id="eyebrow">Analisador de logs</p>
       <h1>Painel de ataques</h1>
       <p class="meta" id="meta"></p>
     </div>
@@ -299,7 +319,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     <section class="card">
       <div class="card-head">
         <h2>Origem dos ataques</h2>
-        <p>Quem tentou entrar, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
+        <p>Quem atacou, com que ferramenta e com qual resultado. Clique numa linha para ver o log daquele IP.</p>
       </div>
       <div class="table-wrap"><table id="attackers"></table></div>
     </section>
@@ -308,23 +328,31 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
       <section class="card">
         <div class="card-head">
           <h2>Alvo</h2>
-          <p>O que foi atacado neste servidor.</p>
+          <p id="target-sub"></p>
         </div>
         <div id="target"></div>
       </section>
       <section class="card">
         <div class="card-head">
-          <h2>Contas mais atacadas</h2>
-          <p>Falhas de login por conta.</p>
+          <h2 id="accounts-title"></h2>
+          <p id="accounts-sub"></p>
         </div>
         <div class="bars" id="accounts"></div>
       </section>
     </div>
 
+    <section class="card" id="fixes-card">
+      <div class="card-head">
+        <h2>Como corrigir</h2>
+        <p>O que fazer para cada tipo de ataque encontrado, do mais grave para o menos grave.</p>
+      </div>
+      <div id="fixes"></div>
+    </section>
+
     <section class="card">
       <div class="card-head">
         <h2>Ferramentas e técnicas</h2>
-        <p>Inferidas do banner do cliente SSH e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
+        <p>Inferidas do cliente usado e do comportamento. Cada item aponta as linhas do log que servem de evidência.</p>
       </div>
       <div class="split">
         <div><h3>Ferramentas prováveis</h3><div id="tools"></div></div>
@@ -335,7 +363,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     <section class="card">
       <div class="card-head">
         <h2>Sequência de eventos por IP</h2>
-        <p>O log é lido na ordem. Contar falhas mostra o brute force; só a ordem mostra que o login aceito veio <em>depois</em> delas.</p>
+        <p id="seq-intro"></p>
       </div>
       <div class="legend" id="seq-legend"></div>
       <div id="sequences"></div>
@@ -343,7 +371,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 
     <section class="card" id="log-card">
       <div class="card-head">
-        <h2>Log completo</h2>
+        <h2>Log</h2>
       </div>
       <div class="filters">
         <div class="seg" id="kind-filter" role="group" aria-label="Tipo de linha"></div>
@@ -357,16 +385,17 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
 
   <footer>
     <p>Use apenas em logs seus ou de laboratório.</p>
-    <p>"Ferramenta provável" é heurística: o banner do cliente pode ser falsificado e só aparece no log com <span class="mono">LogLevel DEBUG1</span>; a porta de destino aparece com <span class="mono">LogLevel VERBOSE</span>.</p>
+    <p>"Ferramenta provável" é heurística: banner e user-agent podem ser falsificados. No SSH, o banner do cliente só aparece com <span class="mono">LogLevel DEBUG1</span> e a porta de destino com <span class="mono">LogLevel VERBOSE</span>.</p>
   </footer>
 </div>
 <div id="tip" role="tooltip" hidden></div>
 
-<script id="data" type="application/json">{"file": "sample_auth.log", "generated": "22/11/2026 11:34", "threshold": 5, "hosts": ["web01"], "targets": [{"dst": "10.0.0.5", "port": "22", "connections": 22}], "period": {"start": "Nov 22 02:30:01", "end": "Nov 22 10:30:01"}, "totals": {"lines": 104, "events": 23, "failed": 21, "accepted": 2, "ips": 4, "bruteforce": 2, "critical": 1}, "alerts": [{"ip": "203.0.113.5", "user": "root", "failures": 12, "time": "Nov 22 02:47:16", "line": 41}], "bruteforce": [["203.0.113.5", 12], ["198.51.100.7", 7]], "attackers": [{"ip": "203.0.113.5", "risk": "critico", "failed": 12, "accepted": 1, "users": ["root", "admin", "test", "oracle", "ubuntu", "pi", "deploy", "guest"], "accepted_users": ["root"], "invalid_users": ["admin", "guest", "oracle", "pi", "test"], "first": "Nov 22 02:47:01", "last": "Nov 22 02:51:40", "connections": 10, "median_gap": 1.0, "machine_pace": true, "software": {"software": "libssh_0.10.6", "n": 4}, "tool": "Hydra (THC-Hydra)", "tool_basis": "banner do cliente \"libssh_0.10.6\": o módulo SSH do Hydra usa a libssh", "sessions": [{"user": "root", "n": 42, "time": "Nov 22 02:47:16"}], "techniques": [{"id": "T1110.001", "evidence": [32, 33, 34, 37, 38]}, {"id": "T1110.003", "evidence": [6, 10, 15, 18, 22, 25, 29, 32]}, {"id": "T1078", "evidence": [41, 42]}], "sequence": [{"k": "failed", "n": 6, "time": "Nov 22 02:47:02", "user": "admin", "count": 1}, {"k": "failed", "n": 10, "time": "Nov 22 02:47:03", "user": "test", "count": 2}, {"k": "failed", "n": 15, "time": "Nov 22 02:47:04", "user": "oracle", "count": 3}, {"k": "failed", "n": 18, "time": "Nov 22 02:47:05", "user": "ubuntu", "count": 4}, {"k": "failed", "n": 22, "time": "Nov 22 02:47:06", "user": "pi", "count": 5}, {"k": "failed", "n": 25, "time": "Nov 22 02:47:07", "user": "deploy", "count": 6}, {"k": "failed", "n": 29, "time": "Nov 22 02:47:08", "user": "guest", "count": 7}, {"k": "failed", "n": 32, "time": "Nov 22 02:47:10", "user": "root", "count": 8}, {"k": "failed", "n": 33, "time": "Nov 22 02:47:11", "user": "root", "count": 9}, {"k": "failed", "n": 34, "time": "Nov 22 02:47:12", "user": "root", "count": 10}, {"k": "failed", "n": 37, "time": "Nov 22 02:47:13", "user": "root", "count": 11}, {"k": "failed", "n": 38, "time": "Nov 22 02:47:14", "user": "root", "count": 12}, {"k": "accepted", "n": 41, "time": "Nov 22 02:47:16", "user": "root", "after_limit": true}]}, {"ip": "198.51.100.7", "risk": "alto", "failed": 7, "accepted": 0, "users": ["admin", "user", "ftpuser", "postgres", "ubnt", "support", "git"], "accepted_users": [], "invalid_users": ["admin", "ftpuser", "git", "postgres", "support", "ubnt", "user"], "first": "Nov 22 10:05:12", "last": "Nov 22 10:05:33", "connections": 8, "median_gap": 2.0, "machine_pace": true, "software": {"software": "Go", "n": 69}, "tool": "Bot/scanner escrito em Go", "tool_basis": "banner do cliente \"Go\": banner padrão da biblioteca SSH do Go, comum em botnets", "sessions": [], "techniques": [{"id": "T1046", "evidence": [66]}, {"id": "T1110.003", "evidence": [71, 76, 81, 86, 91, 96, 101]}], "sequence": [{"k": "recon", "n": 66, "time": "Nov 22 10:05:12", "label": "abandonou o handshake SSH"}, {"k": "failed", "n": 71, "time": "Nov 22 10:05:21", "user": "admin", "count": 1}, {"k": "failed", "n": 76, "time": "Nov 22 10:05:23", "user": "user", "count": 2}, {"k": "failed", "n": 81, "time": "Nov 22 10:05:25", "user": "ftpuser", "count": 3}, {"k": "failed", "n": 86, "time": "Nov 22 10:05:27", "user": "postgres", "count": 4}, {"k": "failed", "n": 91, "time": "Nov 22 10:05:29", "user": "ubnt", "count": 5}, {"k": "failed", "n": 96, "time": "Nov 22 10:05:31", "user": "support", "count": 6}, {"k": "failed", "n": 101, "time": "Nov 22 10:05:33", "user": "git", "count": 7}]}, {"ip": "203.0.113.88", "risk": "medio", "failed": 0, "accepted": 0, "users": [], "accepted_users": [], "invalid_users": [], "first": "Nov 22 09:41:03", "last": "Nov 22 09:41:05", "connections": 3, "median_gap": null, "machine_pace": false, "software": {"software": "Nmap-SSH2-Hostkey", "n": 61}, "tool": "Nmap (scripts NSE)", "tool_basis": "banner do cliente \"Nmap-SSH2-Hostkey\": banner padrão dos scripts SSH do Nmap", "sessions": [], "techniques": [{"id": "T1046", "evidence": [58, 64]}], "sequence": [{"k": "recon", "n": 58, "time": "Nov 22 09:41:03", "label": "abandonou o handshake SSH"}, {"k": "recon", "n": 64, "time": "Nov 22 09:41:05", "label": "enviou banner inválido"}]}, {"ip": "192.0.2.10", "risk": "baixo", "failed": 2, "accepted": 1, "users": ["maria"], "accepted_users": ["maria"], "invalid_users": [], "first": "Nov 22 08:12:40", "last": "Nov 22 08:13:04", "connections": 1, "median_gap": 8.5, "machine_pace": false, "software": {"software": "OpenSSH_9.6p1 Ubuntu-3ubuntu13.5", "n": 51}, "tool": "Cliente OpenSSH", "tool_basis": "banner do cliente \"OpenSSH_9.6p1 Ubuntu-3ubuntu13.5\": cliente padrão de Linux, macOS e Windows", "sessions": [{"user": "maria", "n": 55, "time": "Nov 22 08:13:04"}], "techniques": [], "sequence": [{"k": "failed", "n": 52, "time": "Nov 22 08:12:47", "user": "maria", "count": 1}, {"k": "failed", "n": 53, "time": "Nov 22 08:12:55", "user": "maria", "count": 2}, {"k": "accepted", "n": 54, "time": "Nov 22 08:13:04", "user": "maria", "after_limit": false}]}], "accounts": [{"user": "root", "failed": 5, "ips": ["203.0.113.5"], "exists": true, "compromised": true}, {"user": "admin", "failed": 2, "ips": ["198.51.100.7", "203.0.113.5"], "exists": false, "compromised": false}, {"user": "maria", "failed": 2, "ips": ["192.0.2.10"], "exists": true, "compromised": false}, {"user": "test", "failed": 1, "ips": ["203.0.113.5"], "exists": false, "compromised": false}, {"user": "oracle", "failed": 1, "ips": ["203.0.113.5"], "exists": false, "compromised": false}, {"user": "ubuntu", "failed": 1, "ips": ["203.0.113.5"], "exists": true, "compromised": false}, {"user": "pi", "failed": 1, "ips": ["203.0.113.5"], "exists": false, "compromised": false}, {"user": "deploy", "failed": 1, "ips": ["203.0.113.5"], "exists": true, "compromised": false}, {"user": "guest", "failed": 1, "ips": ["203.0.113.5"], "exists": false, "compromised": false}, {"user": "user", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}, {"user": "ftpuser", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}, {"user": "postgres", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}, {"user": "ubnt", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}, {"user": "support", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}, {"user": "git", "failed": 1, "ips": ["198.51.100.7"], "exists": false, "compromised": false}], "techniques": [{"id": "T1046", "name": "Varredura de serviço", "description": "Conexões que abrem a porta 22 e saem sem handshake: mapeamento do serviço.", "ips": ["198.51.100.7", "203.0.113.88"], "evidence": [58, 64, 66]}, {"id": "T1110.001", "name": "Adivinhação de senha", "description": "Muitas senhas contra a mesma conta.", "ips": ["203.0.113.5"], "evidence": [32, 33, 34, 37, 38]}, {"id": "T1110.003", "name": "Password spraying", "description": "Poucas tentativas em muitas contas, geralmente de uma lista pronta.", "ips": ["203.0.113.5", "198.51.100.7"], "evidence": [6, 10, 15, 18, 22, 25, 29, 32]}, {"id": "T1078", "name": "Uso de conta válida", "description": "Login aceito depois de passar do limite de falhas: senha descoberta.", "ips": ["203.0.113.5"], "evidence": [41, 42]}], "lines": [{"n": 1, "k": "other", "t": "Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)", "ip": null}, {"n": 2, "k": "other", "t": "Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session closed for user root", "ip": null}, {"n": 3, "k": "connection", "t": "Nov 22 02:47:01 web01 sshd[2101]: Connection from 203.0.113.5 port 40110 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 4, "k": "client", "t": "Nov 22 02:47:01 web01 sshd[2101]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 5, "k": "invalid_user", "t": "Nov 22 02:47:01 web01 sshd[2101]: Invalid user admin from 203.0.113.5 port 40110", "ip": "203.0.113.5"}, {"n": 6, "k": "failed", "t": "Nov 22 02:47:02 web01 sshd[2101]: Failed password for invalid user admin from 203.0.113.5 port 40110 ssh2", "ip": "203.0.113.5"}, {"n": 7, "k": "connection", "t": "Nov 22 02:47:02 web01 sshd[2102]: Connection from 203.0.113.5 port 40112 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 8, "k": "client", "t": "Nov 22 02:47:02 web01 sshd[2102]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 9, "k": "invalid_user", "t": "Nov 22 02:47:02 web01 sshd[2102]: Invalid user test from 203.0.113.5 port 40112", "ip": "203.0.113.5"}, {"n": 10, "k": "failed", "t": "Nov 22 02:47:03 web01 sshd[2102]: Failed password for invalid user test from 203.0.113.5 port 40112 ssh2", "ip": "203.0.113.5"}, {"n": 11, "k": "other", "t": "Nov 22 02:47:03 web01 sshd[2101]: Connection closed by invalid user admin 203.0.113.5 port 40110 [preauth]", "ip": "203.0.113.5"}, {"n": 12, "k": "connection", "t": "Nov 22 02:47:03 web01 sshd[2103]: Connection from 203.0.113.5 port 40114 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 13, "k": "client", "t": "Nov 22 02:47:03 web01 sshd[2103]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 14, "k": "invalid_user", "t": "Nov 22 02:47:03 web01 sshd[2103]: Invalid user oracle from 203.0.113.5 port 40114", "ip": "203.0.113.5"}, {"n": 15, "k": "failed", "t": "Nov 22 02:47:04 web01 sshd[2103]: Failed password for invalid user oracle from 203.0.113.5 port 40114 ssh2", "ip": "203.0.113.5"}, {"n": 16, "k": "connection", "t": "Nov 22 02:47:04 web01 sshd[2104]: Connection from 203.0.113.5 port 40116 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 17, "k": "client", "t": "Nov 22 02:47:04 web01 sshd[2104]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 18, "k": "failed", "t": "Nov 22 02:47:05 web01 sshd[2104]: Failed password for ubuntu from 203.0.113.5 port 40116 ssh2", "ip": "203.0.113.5"}, {"n": 19, "k": "connection", "t": "Nov 22 02:47:05 web01 sshd[2105]: Connection from 203.0.113.5 port 40118 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 20, "k": "client", "t": "Nov 22 02:47:05 web01 sshd[2105]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 21, "k": "invalid_user", "t": "Nov 22 02:47:05 web01 sshd[2105]: Invalid user pi from 203.0.113.5 port 40118", "ip": "203.0.113.5"}, {"n": 22, "k": "failed", "t": "Nov 22 02:47:06 web01 sshd[2105]: Failed password for invalid user pi from 203.0.113.5 port 40118 ssh2", "ip": "203.0.113.5"}, {"n": 23, "k": "connection", "t": "Nov 22 02:47:06 web01 sshd[2106]: Connection from 203.0.113.5 port 40120 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 24, "k": "client", "t": "Nov 22 02:47:06 web01 sshd[2106]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 25, "k": "failed", "t": "Nov 22 02:47:07 web01 sshd[2106]: Failed password for deploy from 203.0.113.5 port 40120 ssh2", "ip": "203.0.113.5"}, {"n": 26, "k": "connection", "t": "Nov 22 02:47:07 web01 sshd[2107]: Connection from 203.0.113.5 port 40122 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 27, "k": "client", "t": "Nov 22 02:47:07 web01 sshd[2107]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 28, "k": "invalid_user", "t": "Nov 22 02:47:07 web01 sshd[2107]: Invalid user guest from 203.0.113.5 port 40122", "ip": "203.0.113.5"}, {"n": 29, "k": "failed", "t": "Nov 22 02:47:08 web01 sshd[2107]: Failed password for invalid user guest from 203.0.113.5 port 40122 ssh2", "ip": "203.0.113.5"}, {"n": 30, "k": "connection", "t": "Nov 22 02:47:09 web01 sshd[2108]: Connection from 203.0.113.5 port 40124 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 31, "k": "client", "t": "Nov 22 02:47:09 web01 sshd[2108]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 32, "k": "failed", "t": "Nov 22 02:47:10 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2", "ip": "203.0.113.5"}, {"n": 33, "k": "failed", "t": "Nov 22 02:47:11 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2", "ip": "203.0.113.5"}, {"n": 34, "k": "failed", "t": "Nov 22 02:47:12 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2", "ip": "203.0.113.5"}, {"n": 35, "k": "connection", "t": "Nov 22 02:47:12 web01 sshd[2109]: Connection from 203.0.113.5 port 40126 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 36, "k": "client", "t": "Nov 22 02:47:12 web01 sshd[2109]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 37, "k": "failed", "t": "Nov 22 02:47:13 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2", "ip": "203.0.113.5"}, {"n": 38, "k": "failed", "t": "Nov 22 02:47:14 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2", "ip": "203.0.113.5"}, {"n": 39, "k": "connection", "t": "Nov 22 02:47:15 web01 sshd[2110]: Connection from 203.0.113.5 port 40128 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.5"}, {"n": 40, "k": "client", "t": "Nov 22 02:47:15 web01 sshd[2110]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6", "ip": "203.0.113.5"}, {"n": 41, "k": "accepted", "t": "Nov 22 02:47:16 web01 sshd[2110]: Accepted password for root from 203.0.113.5 port 40128 ssh2", "ip": "203.0.113.5"}, {"n": 42, "k": "session", "t": "Nov 22 02:47:16 web01 sshd[2110]: pam_unix(sshd:session): session opened for user root(uid=0) by (uid=0)", "ip": "203.0.113.5"}, {"n": 43, "k": "other", "t": "Nov 22 02:47:16 web01 systemd-logind[612]: New session 31 of user root.", "ip": null}, {"n": 44, "k": "other", "t": "Nov 22 02:51:40 web01 sshd[2110]: Received disconnect from 203.0.113.5 port 40128:11: disconnected by user", "ip": "203.0.113.5"}, {"n": 45, "k": "other", "t": "Nov 22 02:51:40 web01 sshd[2110]: Disconnected from user root 203.0.113.5 port 40128", "ip": "203.0.113.5"}, {"n": 46, "k": "other", "t": "Nov 22 02:51:40 web01 sshd[2110]: pam_unix(sshd:session): session closed for user root", "ip": "203.0.113.5"}, {"n": 47, "k": "other", "t": "Nov 22 02:51:40 web01 systemd-logind[612]: Session 31 logged out. Waiting for processes to exit.", "ip": null}, {"n": 48, "k": "other", "t": "Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)", "ip": null}, {"n": 49, "k": "other", "t": "Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session closed for user root", "ip": null}, {"n": 50, "k": "connection", "t": "Nov 22 08:12:40 web01 sshd[3188]: Connection from 192.0.2.10 port 53210 on 10.0.0.5 port 22 rdomain \"\"", "ip": "192.0.2.10"}, {"n": 51, "k": "client", "t": "Nov 22 08:12:40 web01 sshd[3188]: debug1: Remote protocol version 2.0, remote software version OpenSSH_9.6p1 Ubuntu-3ubuntu13.5", "ip": "192.0.2.10"}, {"n": 52, "k": "failed", "t": "Nov 22 08:12:47 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2", "ip": "192.0.2.10"}, {"n": 53, "k": "failed", "t": "Nov 22 08:12:55 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2", "ip": "192.0.2.10"}, {"n": 54, "k": "accepted", "t": "Nov 22 08:13:04 web01 sshd[3188]: Accepted password for maria from 192.0.2.10 port 53210 ssh2", "ip": "192.0.2.10"}, {"n": 55, "k": "session", "t": "Nov 22 08:13:04 web01 sshd[3188]: pam_unix(sshd:session): session opened for user maria(uid=1001) by (uid=0)", "ip": "192.0.2.10"}, {"n": 56, "k": "other", "t": "Nov 22 08:13:04 web01 systemd-logind[612]: New session 32 of user maria.", "ip": null}, {"n": 57, "k": "connection", "t": "Nov 22 09:41:03 web01 sshd[3502]: Connection from 203.0.113.88 port 61000 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.88"}, {"n": 58, "k": "recon", "t": "Nov 22 09:41:03 web01 sshd[3502]: kex_exchange_identification: Connection closed by remote host", "ip": "203.0.113.88"}, {"n": 59, "k": "other", "t": "Nov 22 09:41:03 web01 sshd[3502]: Connection closed by 203.0.113.88 port 61000", "ip": "203.0.113.88"}, {"n": 60, "k": "connection", "t": "Nov 22 09:41:04 web01 sshd[3503]: Connection from 203.0.113.88 port 61002 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.88"}, {"n": 61, "k": "client", "t": "Nov 22 09:41:04 web01 sshd[3503]: debug1: Remote protocol version 2.0, remote software version Nmap-SSH2-Hostkey", "ip": "203.0.113.88"}, {"n": 62, "k": "other", "t": "Nov 22 09:41:04 web01 sshd[3503]: Connection closed by 203.0.113.88 port 61002 [preauth]", "ip": "203.0.113.88"}, {"n": 63, "k": "connection", "t": "Nov 22 09:41:05 web01 sshd[3504]: Connection from 203.0.113.88 port 61004 on 10.0.0.5 port 22 rdomain \"\"", "ip": "203.0.113.88"}, {"n": 64, "k": "recon", "t": "Nov 22 09:41:05 web01 sshd[3504]: banner exchange: Connection from 203.0.113.88 port 61004: invalid format", "ip": "203.0.113.88"}, {"n": 65, "k": "connection", "t": "Nov 22 10:05:12 web01 sshd[3611]: Connection from 198.51.100.7 port 44871 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 66, "k": "recon", "t": "Nov 22 10:05:12 web01 sshd[3611]: kex_exchange_identification: Connection closed by remote host", "ip": "198.51.100.7"}, {"n": 67, "k": "other", "t": "Nov 22 10:05:12 web01 sshd[3611]: Connection closed by 198.51.100.7 port 44871", "ip": "198.51.100.7"}, {"n": 68, "k": "connection", "t": "Nov 22 10:05:20 web01 sshd[3615]: Connection from 198.51.100.7 port 44890 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 69, "k": "client", "t": "Nov 22 10:05:20 web01 sshd[3615]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 70, "k": "invalid_user", "t": "Nov 22 10:05:20 web01 sshd[3615]: Invalid user admin from 198.51.100.7 port 44890", "ip": "198.51.100.7"}, {"n": 71, "k": "failed", "t": "Nov 22 10:05:21 web01 sshd[3615]: Failed password for invalid user admin from 198.51.100.7 port 44890 ssh2", "ip": "198.51.100.7"}, {"n": 72, "k": "other", "t": "Nov 22 10:05:21 web01 sshd[3615]: Connection closed by invalid user admin 198.51.100.7 port 44890 [preauth]", "ip": "198.51.100.7"}, {"n": 73, "k": "connection", "t": "Nov 22 10:05:22 web01 sshd[3616]: Connection from 198.51.100.7 port 44892 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 74, "k": "client", "t": "Nov 22 10:05:22 web01 sshd[3616]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 75, "k": "invalid_user", "t": "Nov 22 10:05:22 web01 sshd[3616]: Invalid user user from 198.51.100.7 port 44892", "ip": "198.51.100.7"}, {"n": 76, "k": "failed", "t": "Nov 22 10:05:23 web01 sshd[3616]: Failed password for invalid user user from 198.51.100.7 port 44892 ssh2", "ip": "198.51.100.7"}, {"n": 77, "k": "other", "t": "Nov 22 10:05:23 web01 sshd[3616]: Connection closed by invalid user user 198.51.100.7 port 44892 [preauth]", "ip": "198.51.100.7"}, {"n": 78, "k": "connection", "t": "Nov 22 10:05:24 web01 sshd[3617]: Connection from 198.51.100.7 port 44894 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 79, "k": "client", "t": "Nov 22 10:05:24 web01 sshd[3617]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 80, "k": "invalid_user", "t": "Nov 22 10:05:24 web01 sshd[3617]: Invalid user ftpuser from 198.51.100.7 port 44894", "ip": "198.51.100.7"}, {"n": 81, "k": "failed", "t": "Nov 22 10:05:25 web01 sshd[3617]: Failed password for invalid user ftpuser from 198.51.100.7 port 44894 ssh2", "ip": "198.51.100.7"}, {"n": 82, "k": "other", "t": "Nov 22 10:05:25 web01 sshd[3617]: Connection closed by invalid user ftpuser 198.51.100.7 port 44894 [preauth]", "ip": "198.51.100.7"}, {"n": 83, "k": "connection", "t": "Nov 22 10:05:26 web01 sshd[3618]: Connection from 198.51.100.7 port 44896 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 84, "k": "client", "t": "Nov 22 10:05:26 web01 sshd[3618]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 85, "k": "invalid_user", "t": "Nov 22 10:05:26 web01 sshd[3618]: Invalid user postgres from 198.51.100.7 port 44896", "ip": "198.51.100.7"}, {"n": 86, "k": "failed", "t": "Nov 22 10:05:27 web01 sshd[3618]: Failed password for invalid user postgres from 198.51.100.7 port 44896 ssh2", "ip": "198.51.100.7"}, {"n": 87, "k": "other", "t": "Nov 22 10:05:27 web01 sshd[3618]: Connection closed by invalid user postgres 198.51.100.7 port 44896 [preauth]", "ip": "198.51.100.7"}, {"n": 88, "k": "connection", "t": "Nov 22 10:05:28 web01 sshd[3619]: Connection from 198.51.100.7 port 44898 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 89, "k": "client", "t": "Nov 22 10:05:28 web01 sshd[3619]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 90, "k": "invalid_user", "t": "Nov 22 10:05:28 web01 sshd[3619]: Invalid user ubnt from 198.51.100.7 port 44898", "ip": "198.51.100.7"}, {"n": 91, "k": "failed", "t": "Nov 22 10:05:29 web01 sshd[3619]: Failed password for invalid user ubnt from 198.51.100.7 port 44898 ssh2", "ip": "198.51.100.7"}, {"n": 92, "k": "other", "t": "Nov 22 10:05:29 web01 sshd[3619]: Connection closed by invalid user ubnt 198.51.100.7 port 44898 [preauth]", "ip": "198.51.100.7"}, {"n": 93, "k": "connection", "t": "Nov 22 10:05:30 web01 sshd[3620]: Connection from 198.51.100.7 port 44900 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 94, "k": "client", "t": "Nov 22 10:05:30 web01 sshd[3620]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 95, "k": "invalid_user", "t": "Nov 22 10:05:30 web01 sshd[3620]: Invalid user support from 198.51.100.7 port 44900", "ip": "198.51.100.7"}, {"n": 96, "k": "failed", "t": "Nov 22 10:05:31 web01 sshd[3620]: Failed password for invalid user support from 198.51.100.7 port 44900 ssh2", "ip": "198.51.100.7"}, {"n": 97, "k": "other", "t": "Nov 22 10:05:31 web01 sshd[3620]: Connection closed by invalid user support 198.51.100.7 port 44900 [preauth]", "ip": "198.51.100.7"}, {"n": 98, "k": "connection", "t": "Nov 22 10:05:32 web01 sshd[3621]: Connection from 198.51.100.7 port 44902 on 10.0.0.5 port 22 rdomain \"\"", "ip": "198.51.100.7"}, {"n": 99, "k": "client", "t": "Nov 22 10:05:32 web01 sshd[3621]: debug1: Remote protocol version 2.0, remote software version Go", "ip": "198.51.100.7"}, {"n": 100, "k": "invalid_user", "t": "Nov 22 10:05:32 web01 sshd[3621]: Invalid user git from 198.51.100.7 port 44902", "ip": "198.51.100.7"}, {"n": 101, "k": "failed", "t": "Nov 22 10:05:33 web01 sshd[3621]: Failed password for invalid user git from 198.51.100.7 port 44902 ssh2", "ip": "198.51.100.7"}, {"n": 102, "k": "other", "t": "Nov 22 10:05:33 web01 sshd[3621]: Connection closed by invalid user git 198.51.100.7 port 44902 [preauth]", "ip": "198.51.100.7"}, {"n": 103, "k": "other", "t": "Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)", "ip": null}, {"n": 104, "k": "other", "t": "Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session closed for user root", "ip": null}]}</script>
+<script id="data" type="application/json">{"kind":"ssh","hosts":["web01"],"targets":[{"dst":"10.0.0.5","port":"22","connections":22}],"period":{"start":"Nov 22 02:30:01","end":"Nov 22 10:30:01"},"totals":{"lines":104,"events":23,"failed":21,"accepted":2,"ips":4,"bruteforce":2,"critical":1},"verdict":{"level":"critico","title":"Um atacante conseguiu entrar","text":"203.0.113.5 errou a senha 12 vezes seguidas e depois entrou como root em Nov 22 02:47:16. Ferramenta provável: Hydra (THC-Hydra).","actions":[{"label":"Ver o login no log (L41)","line":41},{"label":"Todas as linhas de 203.0.113.5","ip":"203.0.113.5"}]},"kpis":[{"label":"Eventos de login","value":23,"note":"104 linhas lidas"},{"label":"Falhas","value":21,"note":"91,3% das tentativas"},{"label":"Logins aceitos","value":2,"note":"1 após brute force"},{"label":"IPs de origem","value":4,"note":"3 suspeitos"},{"label":"Brute force","value":2,"note":"IPs com ≥ 5 falhas"}],"alerts":[{"ip":"203.0.113.5","user":"root","failures":12,"time":"Nov 22 02:47:16","line":41}],"bruteforce":[["203.0.113.5",12],["198.51.100.7",7]],"attackers":[{"ip":"203.0.113.5","risk":"critico","failed":12,"accepted":1,"users":["root","admin","test","oracle","ubuntu","pi","deploy","guest"],"first":"Nov 22 02:47:01","last":"Nov 22 02:51:40","period":"02:47:01 → 02:51:40","median_gap":1.0,"machine_pace":true,"software":{"software":"libssh_0.10.6","n":4},"tool":"Hydra (THC-Hydra)","tool_basis":"banner do cliente \"libssh_0.10.6\": o módulo SSH do Hydra usa a libssh","sessions":[{"user":"root","n":42,"time":"Nov 22 02:47:16"}],"techniques":[{"id":"T1110.001","evidence":[32,33,34,37,38]},{"id":"T1110.003","evidence":[6,10,15,18,22,25,29,32]},{"id":"T1078","evidence":[41,42]}],"sequence":[{"k":"failed","n":6,"time":"Nov 22 02:47:02","count":1,"label":"Falha nº 1 seguida · admin"},{"k":"failed","n":10,"time":"Nov 22 02:47:03","count":2,"label":"Falha nº 2 seguida · test"},{"k":"failed","n":15,"time":"Nov 22 02:47:04","count":3,"label":"Falha nº 3 seguida · oracle"},{"k":"failed","n":18,"time":"Nov 22 02:47:05","count":4,"label":"Falha nº 4 seguida · ubuntu"},{"k":"failed","n":22,"time":"Nov 22 02:47:06","count":5,"label":"Falha nº 5 seguida · pi"},{"k":"failed","n":25,"time":"Nov 22 02:47:07","count":6,"label":"Falha nº 6 seguida · deploy"},{"k":"failed","n":29,"time":"Nov 22 02:47:08","count":7,"label":"Falha nº 7 seguida · guest"},{"k":"failed","n":32,"time":"Nov 22 02:47:10","count":8,"label":"Falha nº 8 seguida · root"},{"k":"failed","n":33,"time":"Nov 22 02:47:11","count":9,"label":"Falha nº 9 seguida · root"},{"k":"failed","n":34,"time":"Nov 22 02:47:12","count":10,"label":"Falha nº 10 seguida · root"},{"k":"failed","n":37,"time":"Nov 22 02:47:13","count":11,"label":"Falha nº 11 seguida · root"},{"k":"failed","n":38,"time":"Nov 22 02:47:14","count":12,"label":"Falha nº 12 seguida · root"},{"k":"accepted","n":41,"time":"Nov 22 02:47:16","crit":true,"label":"ACEITO APÓS O LIMITE · root"}]},{"ip":"198.51.100.7","risk":"alto","failed":7,"accepted":0,"users":["admin","user","ftpuser","postgres","ubnt","support","git"],"first":"Nov 22 10:05:12","last":"Nov 22 10:05:33","period":"10:05:12 → 10:05:33","median_gap":2.0,"machine_pace":true,"software":{"software":"Go","n":69},"tool":"Bot/scanner escrito em Go","tool_basis":"banner do cliente \"Go\": banner padrão da biblioteca SSH do Go, comum em botnets","sessions":[],"techniques":[{"id":"T1046","evidence":[66]},{"id":"T1110.003","evidence":[71,76,81,86,91,96,101]}],"sequence":[{"k":"recon","n":66,"time":"Nov 22 10:05:12","label":"Varredura: abandonou o handshake SSH"},{"k":"failed","n":71,"time":"Nov 22 10:05:21","count":1,"label":"Falha nº 1 seguida · admin"},{"k":"failed","n":76,"time":"Nov 22 10:05:23","count":2,"label":"Falha nº 2 seguida · user"},{"k":"failed","n":81,"time":"Nov 22 10:05:25","count":3,"label":"Falha nº 3 seguida · ftpuser"},{"k":"failed","n":86,"time":"Nov 22 10:05:27","count":4,"label":"Falha nº 4 seguida · postgres"},{"k":"failed","n":91,"time":"Nov 22 10:05:29","count":5,"label":"Falha nº 5 seguida · ubnt"},{"k":"failed","n":96,"time":"Nov 22 10:05:31","count":6,"label":"Falha nº 6 seguida · support"},{"k":"failed","n":101,"time":"Nov 22 10:05:33","count":7,"label":"Falha nº 7 seguida · git"}]},{"ip":"203.0.113.88","risk":"medio","failed":0,"accepted":0,"users":[],"first":"Nov 22 09:41:03","last":"Nov 22 09:41:05","period":"09:41:03 → 09:41:05","median_gap":null,"machine_pace":false,"software":{"software":"Nmap-SSH2-Hostkey","n":61},"tool":"Nmap (scripts NSE)","tool_basis":"banner do cliente \"Nmap-SSH2-Hostkey\": banner padrão dos scripts SSH do Nmap","sessions":[],"techniques":[{"id":"T1046","evidence":[58,64]}],"sequence":[{"k":"recon","n":58,"time":"Nov 22 09:41:03","label":"Varredura: abandonou o handshake SSH"},{"k":"recon","n":64,"time":"Nov 22 09:41:05","label":"Varredura: enviou banner inválido"}]},{"ip":"192.0.2.10","risk":"baixo","failed":2,"accepted":1,"users":["maria"],"first":"Nov 22 08:12:40","last":"Nov 22 08:13:04","period":"08:12:40 → 08:13:04","median_gap":8.5,"machine_pace":false,"software":{"software":"OpenSSH_9.6p1 Ubuntu-3ubuntu13.5","n":51},"tool":"Cliente OpenSSH","tool_basis":"banner do cliente \"OpenSSH_9.6p1 Ubuntu-3ubuntu13.5\": cliente padrão de Linux, macOS e Windows","sessions":[{"user":"maria","n":55,"time":"Nov 22 08:13:04"}],"techniques":[],"sequence":[{"k":"failed","n":52,"time":"Nov 22 08:12:47","count":1,"label":"Falha nº 1 seguida · maria"},{"k":"failed","n":53,"time":"Nov 22 08:12:55","count":2,"label":"Falha nº 2 seguida · maria"},{"k":"accepted","n":54,"time":"Nov 22 08:13:04","crit":false,"label":"Aceito · maria"}]}],"accounts":[{"name":"root","count":5,"flags":[{"text":"comprometida","critical":true}],"tip":"root: 5 falhas\nde 203.0.113.5"},{"name":"admin","count":2,"flags":[{"text":"não existe"}],"tip":"admin: 2 falhas\nde 198.51.100.7, 203.0.113.5\nconta não existe no servidor"},{"name":"maria","count":2,"flags":[],"tip":"maria: 2 falhas\nde 192.0.2.10"},{"name":"test","count":1,"flags":[{"text":"não existe"}],"tip":"test: 1 falha\nde 203.0.113.5\nconta não existe no servidor"},{"name":"oracle","count":1,"flags":[{"text":"não existe"}],"tip":"oracle: 1 falha\nde 203.0.113.5\nconta não existe no servidor"},{"name":"ubuntu","count":1,"flags":[],"tip":"ubuntu: 1 falha\nde 203.0.113.5"},{"name":"pi","count":1,"flags":[{"text":"não existe"}],"tip":"pi: 1 falha\nde 203.0.113.5\nconta não existe no servidor"},{"name":"deploy","count":1,"flags":[],"tip":"deploy: 1 falha\nde 203.0.113.5"},{"name":"guest","count":1,"flags":[{"text":"não existe"}],"tip":"guest: 1 falha\nde 203.0.113.5\nconta não existe no servidor"},{"name":"user","count":1,"flags":[{"text":"não existe"}],"tip":"user: 1 falha\nde 198.51.100.7\nconta não existe no servidor"},{"name":"ftpuser","count":1,"flags":[{"text":"não existe"}],"tip":"ftpuser: 1 falha\nde 198.51.100.7\nconta não existe no servidor"},{"name":"postgres","count":1,"flags":[{"text":"não existe"}],"tip":"postgres: 1 falha\nde 198.51.100.7\nconta não existe no servidor"},{"name":"ubnt","count":1,"flags":[{"text":"não existe"}],"tip":"ubnt: 1 falha\nde 198.51.100.7\nconta não existe no servidor"},{"name":"support","count":1,"flags":[{"text":"não existe"}],"tip":"support: 1 falha\nde 198.51.100.7\nconta não existe no servidor"},{"name":"git","count":1,"flags":[{"text":"não existe"}],"tip":"git: 1 falha\nde 198.51.100.7\nconta não existe no servidor"}],"target":{"title":"10.0.0.5:22","tag":"SSH","sub":"host web01","rows":[{"label":"Conexões","text":"22 na porta 22","muted":false},{"label":"Contas que existem","chips":["root","maria","ubuntu","deploy"]},{"label":"Contas inexistentes","chips":["admin","test","oracle","pi","guest","user","ftpuser","postgres","ubnt","support","git"],"note":"Nomes tirados de listas prontas (wordlists)."},{"label":"Sessões do atacante","items":[{"text":"root aberta às Nov 22 02:47:16 por 203.0.113.5","line":42}]}]},"techniques":[{"id":"T1046","name":"Varredura de serviço","description":"Conexões que abrem a porta 22 e saem sem handshake: mapeamento do serviço.","ips":["198.51.100.7","203.0.113.88"],"evidence":[58,64,66]},{"id":"T1110.001","name":"Adivinhação de senha","description":"Muitas senhas contra a mesma conta.","ips":["203.0.113.5"],"evidence":[32,33,34,37,38]},{"id":"T1110.003","name":"Password spraying","description":"Poucas tentativas em muitas contas, geralmente de uma lista pronta.","ips":["203.0.113.5","198.51.100.7"],"evidence":[6,10,15,18,22,25,29,32]},{"id":"T1078","name":"Uso de conta válida","description":"Login aceito depois de várias senhas erradas: senha descoberta.","ips":["203.0.113.5"],"evidence":[41,42]}],"findings":[{"type":"ssh_compromise","title":"Login aceito depois de brute force","severity":"critico","why":"A senha foi descoberta: trate como invasão até provar o contrário.","steps":["Isole o servidor da rede (ou bloqueie o IP no firewall) antes de investigar.","Troque a senha da conta atacada e remova chaves desconhecidas de ~/.ssh/authorized_keys.","Veja o que foi feito: comandos, usuários novos, cron, processos e conexões abertas.","Se não der para confiar no que encontrou, reinstale a partir de um backup limpo.","Depois aplique as correções de brute force abaixo para não acontecer de novo."],"commands":["last -i | head -20                # quem entrou e de onde","sudo cat /root/.bash_history     # comandos do root","sudo crontab -l; ls /etc/cron.*  # tarefas agendadas novas","sudo ss -tunap                   # conexões abertas agora","awk -F: '$3 >= 1000' /etc/passwd # contas de usuário"],"ips":["203.0.113.5"],"count":1,"evidence":[41,42]},{"type":"ssh_bruteforce","title":"Brute force no SSH","severity":"alto","why":"Alguém está tentando adivinhar senhas; basta uma senha fraca para entrar.","steps":["Use só chaves SSH e desative o login por senha.","Proíba o login direto como root.","Instale o fail2ban para bloquear IPs depois de algumas falhas.","Se possível, libere a porta 22 só para a sua rede ou VPN."],"commands":["# /etc/ssh/sshd_config","PasswordAuthentication no","PermitRootLogin no","MaxAuthTries 3","sudo systemctl reload ssh","sudo apt install fail2ban         # a jail do sshd já vem ativa no Ubuntu","sudo ufw allow from 192.168.0.0/24 to any port 22"],"ips":["203.0.113.5","198.51.100.7"],"count":19,"evidence":[6,10,71,76]},{"type":"ssh_spraying","title":"Várias contas testadas (lista de usuários)","severity":"medio","why":"Contas que nem existem mostram uma lista pronta: o atacante procura qualquer conta fraca.","steps":["Restrinja quem pode entrar por SSH com AllowUsers ou AllowGroups.","Não use nomes óbvios (admin, test, guest, oracle) para contas reais.","O fail2ban também bloqueia esse padrão."],"commands":["# /etc/ssh/sshd_config","AllowUsers maria deploy"],"ips":["203.0.113.5","198.51.100.7"],"count":11,"evidence":[6,10,15,22,29,71,76,81]},{"type":"ssh_scan","title":"Varredura da porta SSH","severity":"baixo","why":"Robôs varrem a internet o tempo todo; é reconhecimento, não invasão.","steps":["Mantenha o OpenSSH atualizado.","Esconda o SSH atrás de uma VPN ou libere só IPs conhecidos.","Trocar a porta 22 reduz o ruído no log, mas não é proteção de verdade."],"commands":["sudo apt update && sudo apt upgrade openssh-server"],"ips":["198.51.100.7","203.0.113.88"],"count":3,"evidence":[58,64,66]}],"critical_lines":[41],"labels":{"failed":"Falhas","accepted":"Aceitos","users":"Contas","failed_unit":["falha","falhas"],"accepted_unit":["aceito","aceitos"],"target_sub":"O que foi atacado neste servidor.","accounts_title":"Contas mais atacadas","accounts_sub":"Falhas de login por conta.","accounts_empty":"Nenhuma falha de login.","seq_intro":"O log é lido na ordem. Contar falhas mostra o brute force; só a ordem mostra que o login aceito veio depois delas. O contador zera a cada login aceito.","legend":[["failed","Falha"],["accepted","Login aceito"],["crit","Aceito após o limite (crítico)"],["recon","Varredura"]],"limit":"Limite de 5 falhas seguidas"},"log_filters":[["all","Todas",[]],["failed","Falhas",["failed","invalid_user"]],["accepted","Aceitos e sessões",["accepted","session"]],["recon","Varreduras",["recon"]],["client","Banner do cliente",["client"]]],"kind_labels":{"failed":"FALHA","invalid_user":"USUÁRIO INVÁLIDO","accepted":"ACEITO","session":"SESSÃO","recon":"VARREDURA","client":"CLIENTE","connection":"CONEXÃO"},"lines":[[1,"other","Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)",null],[2,"other","Nov 22 02:30:01 web01 CRON[2050]: pam_unix(cron:session): session closed for user root",null],[3,"connection","Nov 22 02:47:01 web01 sshd[2101]: Connection from 203.0.113.5 port 40110 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[4,"client","Nov 22 02:47:01 web01 sshd[2101]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[5,"invalid_user","Nov 22 02:47:01 web01 sshd[2101]: Invalid user admin from 203.0.113.5 port 40110","203.0.113.5"],[6,"failed","Nov 22 02:47:02 web01 sshd[2101]: Failed password for invalid user admin from 203.0.113.5 port 40110 ssh2","203.0.113.5"],[7,"connection","Nov 22 02:47:02 web01 sshd[2102]: Connection from 203.0.113.5 port 40112 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[8,"client","Nov 22 02:47:02 web01 sshd[2102]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[9,"invalid_user","Nov 22 02:47:02 web01 sshd[2102]: Invalid user test from 203.0.113.5 port 40112","203.0.113.5"],[10,"failed","Nov 22 02:47:03 web01 sshd[2102]: Failed password for invalid user test from 203.0.113.5 port 40112 ssh2","203.0.113.5"],[11,"other","Nov 22 02:47:03 web01 sshd[2101]: Connection closed by invalid user admin 203.0.113.5 port 40110 [preauth]","203.0.113.5"],[12,"connection","Nov 22 02:47:03 web01 sshd[2103]: Connection from 203.0.113.5 port 40114 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[13,"client","Nov 22 02:47:03 web01 sshd[2103]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[14,"invalid_user","Nov 22 02:47:03 web01 sshd[2103]: Invalid user oracle from 203.0.113.5 port 40114","203.0.113.5"],[15,"failed","Nov 22 02:47:04 web01 sshd[2103]: Failed password for invalid user oracle from 203.0.113.5 port 40114 ssh2","203.0.113.5"],[16,"connection","Nov 22 02:47:04 web01 sshd[2104]: Connection from 203.0.113.5 port 40116 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[17,"client","Nov 22 02:47:04 web01 sshd[2104]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[18,"failed","Nov 22 02:47:05 web01 sshd[2104]: Failed password for ubuntu from 203.0.113.5 port 40116 ssh2","203.0.113.5"],[19,"connection","Nov 22 02:47:05 web01 sshd[2105]: Connection from 203.0.113.5 port 40118 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[20,"client","Nov 22 02:47:05 web01 sshd[2105]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[21,"invalid_user","Nov 22 02:47:05 web01 sshd[2105]: Invalid user pi from 203.0.113.5 port 40118","203.0.113.5"],[22,"failed","Nov 22 02:47:06 web01 sshd[2105]: Failed password for invalid user pi from 203.0.113.5 port 40118 ssh2","203.0.113.5"],[23,"connection","Nov 22 02:47:06 web01 sshd[2106]: Connection from 203.0.113.5 port 40120 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[24,"client","Nov 22 02:47:06 web01 sshd[2106]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[25,"failed","Nov 22 02:47:07 web01 sshd[2106]: Failed password for deploy from 203.0.113.5 port 40120 ssh2","203.0.113.5"],[26,"connection","Nov 22 02:47:07 web01 sshd[2107]: Connection from 203.0.113.5 port 40122 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[27,"client","Nov 22 02:47:07 web01 sshd[2107]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[28,"invalid_user","Nov 22 02:47:07 web01 sshd[2107]: Invalid user guest from 203.0.113.5 port 40122","203.0.113.5"],[29,"failed","Nov 22 02:47:08 web01 sshd[2107]: Failed password for invalid user guest from 203.0.113.5 port 40122 ssh2","203.0.113.5"],[30,"connection","Nov 22 02:47:09 web01 sshd[2108]: Connection from 203.0.113.5 port 40124 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[31,"client","Nov 22 02:47:09 web01 sshd[2108]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[32,"failed","Nov 22 02:47:10 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2","203.0.113.5"],[33,"failed","Nov 22 02:47:11 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2","203.0.113.5"],[34,"failed","Nov 22 02:47:12 web01 sshd[2108]: Failed password for root from 203.0.113.5 port 40124 ssh2","203.0.113.5"],[35,"connection","Nov 22 02:47:12 web01 sshd[2109]: Connection from 203.0.113.5 port 40126 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[36,"client","Nov 22 02:47:12 web01 sshd[2109]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[37,"failed","Nov 22 02:47:13 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2","203.0.113.5"],[38,"failed","Nov 22 02:47:14 web01 sshd[2109]: Failed password for root from 203.0.113.5 port 40126 ssh2","203.0.113.5"],[39,"connection","Nov 22 02:47:15 web01 sshd[2110]: Connection from 203.0.113.5 port 40128 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.5"],[40,"client","Nov 22 02:47:15 web01 sshd[2110]: debug1: Remote protocol version 2.0, remote software version libssh_0.10.6","203.0.113.5"],[41,"accepted","Nov 22 02:47:16 web01 sshd[2110]: Accepted password for root from 203.0.113.5 port 40128 ssh2","203.0.113.5"],[42,"session","Nov 22 02:47:16 web01 sshd[2110]: pam_unix(sshd:session): session opened for user root(uid=0) by (uid=0)","203.0.113.5"],[43,"other","Nov 22 02:47:16 web01 systemd-logind[612]: New session 31 of user root.",null],[44,"other","Nov 22 02:51:40 web01 sshd[2110]: Received disconnect from 203.0.113.5 port 40128:11: disconnected by user","203.0.113.5"],[45,"other","Nov 22 02:51:40 web01 sshd[2110]: Disconnected from user root 203.0.113.5 port 40128","203.0.113.5"],[46,"other","Nov 22 02:51:40 web01 sshd[2110]: pam_unix(sshd:session): session closed for user root","203.0.113.5"],[47,"other","Nov 22 02:51:40 web01 systemd-logind[612]: Session 31 logged out. Waiting for processes to exit.",null],[48,"other","Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)",null],[49,"other","Nov 22 08:00:01 web01 CRON[3120]: pam_unix(cron:session): session closed for user root",null],[50,"connection","Nov 22 08:12:40 web01 sshd[3188]: Connection from 192.0.2.10 port 53210 on 10.0.0.5 port 22 rdomain \"\"","192.0.2.10"],[51,"client","Nov 22 08:12:40 web01 sshd[3188]: debug1: Remote protocol version 2.0, remote software version OpenSSH_9.6p1 Ubuntu-3ubuntu13.5","192.0.2.10"],[52,"failed","Nov 22 08:12:47 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2","192.0.2.10"],[53,"failed","Nov 22 08:12:55 web01 sshd[3188]: Failed password for maria from 192.0.2.10 port 53210 ssh2","192.0.2.10"],[54,"accepted","Nov 22 08:13:04 web01 sshd[3188]: Accepted password for maria from 192.0.2.10 port 53210 ssh2","192.0.2.10"],[55,"session","Nov 22 08:13:04 web01 sshd[3188]: pam_unix(sshd:session): session opened for user maria(uid=1001) by (uid=0)","192.0.2.10"],[56,"other","Nov 22 08:13:04 web01 systemd-logind[612]: New session 32 of user maria.",null],[57,"connection","Nov 22 09:41:03 web01 sshd[3502]: Connection from 203.0.113.88 port 61000 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.88"],[58,"recon","Nov 22 09:41:03 web01 sshd[3502]: kex_exchange_identification: Connection closed by remote host","203.0.113.88"],[59,"other","Nov 22 09:41:03 web01 sshd[3502]: Connection closed by 203.0.113.88 port 61000","203.0.113.88"],[60,"connection","Nov 22 09:41:04 web01 sshd[3503]: Connection from 203.0.113.88 port 61002 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.88"],[61,"client","Nov 22 09:41:04 web01 sshd[3503]: debug1: Remote protocol version 2.0, remote software version Nmap-SSH2-Hostkey","203.0.113.88"],[62,"other","Nov 22 09:41:04 web01 sshd[3503]: Connection closed by 203.0.113.88 port 61002 [preauth]","203.0.113.88"],[63,"connection","Nov 22 09:41:05 web01 sshd[3504]: Connection from 203.0.113.88 port 61004 on 10.0.0.5 port 22 rdomain \"\"","203.0.113.88"],[64,"recon","Nov 22 09:41:05 web01 sshd[3504]: banner exchange: Connection from 203.0.113.88 port 61004: invalid format","203.0.113.88"],[65,"connection","Nov 22 10:05:12 web01 sshd[3611]: Connection from 198.51.100.7 port 44871 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[66,"recon","Nov 22 10:05:12 web01 sshd[3611]: kex_exchange_identification: Connection closed by remote host","198.51.100.7"],[67,"other","Nov 22 10:05:12 web01 sshd[3611]: Connection closed by 198.51.100.7 port 44871","198.51.100.7"],[68,"connection","Nov 22 10:05:20 web01 sshd[3615]: Connection from 198.51.100.7 port 44890 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[69,"client","Nov 22 10:05:20 web01 sshd[3615]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[70,"invalid_user","Nov 22 10:05:20 web01 sshd[3615]: Invalid user admin from 198.51.100.7 port 44890","198.51.100.7"],[71,"failed","Nov 22 10:05:21 web01 sshd[3615]: Failed password for invalid user admin from 198.51.100.7 port 44890 ssh2","198.51.100.7"],[72,"other","Nov 22 10:05:21 web01 sshd[3615]: Connection closed by invalid user admin 198.51.100.7 port 44890 [preauth]","198.51.100.7"],[73,"connection","Nov 22 10:05:22 web01 sshd[3616]: Connection from 198.51.100.7 port 44892 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[74,"client","Nov 22 10:05:22 web01 sshd[3616]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[75,"invalid_user","Nov 22 10:05:22 web01 sshd[3616]: Invalid user user from 198.51.100.7 port 44892","198.51.100.7"],[76,"failed","Nov 22 10:05:23 web01 sshd[3616]: Failed password for invalid user user from 198.51.100.7 port 44892 ssh2","198.51.100.7"],[77,"other","Nov 22 10:05:23 web01 sshd[3616]: Connection closed by invalid user user 198.51.100.7 port 44892 [preauth]","198.51.100.7"],[78,"connection","Nov 22 10:05:24 web01 sshd[3617]: Connection from 198.51.100.7 port 44894 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[79,"client","Nov 22 10:05:24 web01 sshd[3617]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[80,"invalid_user","Nov 22 10:05:24 web01 sshd[3617]: Invalid user ftpuser from 198.51.100.7 port 44894","198.51.100.7"],[81,"failed","Nov 22 10:05:25 web01 sshd[3617]: Failed password for invalid user ftpuser from 198.51.100.7 port 44894 ssh2","198.51.100.7"],[82,"other","Nov 22 10:05:25 web01 sshd[3617]: Connection closed by invalid user ftpuser 198.51.100.7 port 44894 [preauth]","198.51.100.7"],[83,"connection","Nov 22 10:05:26 web01 sshd[3618]: Connection from 198.51.100.7 port 44896 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[84,"client","Nov 22 10:05:26 web01 sshd[3618]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[85,"invalid_user","Nov 22 10:05:26 web01 sshd[3618]: Invalid user postgres from 198.51.100.7 port 44896","198.51.100.7"],[86,"failed","Nov 22 10:05:27 web01 sshd[3618]: Failed password for invalid user postgres from 198.51.100.7 port 44896 ssh2","198.51.100.7"],[87,"other","Nov 22 10:05:27 web01 sshd[3618]: Connection closed by invalid user postgres 198.51.100.7 port 44896 [preauth]","198.51.100.7"],[88,"connection","Nov 22 10:05:28 web01 sshd[3619]: Connection from 198.51.100.7 port 44898 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[89,"client","Nov 22 10:05:28 web01 sshd[3619]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[90,"invalid_user","Nov 22 10:05:28 web01 sshd[3619]: Invalid user ubnt from 198.51.100.7 port 44898","198.51.100.7"],[91,"failed","Nov 22 10:05:29 web01 sshd[3619]: Failed password for invalid user ubnt from 198.51.100.7 port 44898 ssh2","198.51.100.7"],[92,"other","Nov 22 10:05:29 web01 sshd[3619]: Connection closed by invalid user ubnt 198.51.100.7 port 44898 [preauth]","198.51.100.7"],[93,"connection","Nov 22 10:05:30 web01 sshd[3620]: Connection from 198.51.100.7 port 44900 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[94,"client","Nov 22 10:05:30 web01 sshd[3620]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[95,"invalid_user","Nov 22 10:05:30 web01 sshd[3620]: Invalid user support from 198.51.100.7 port 44900","198.51.100.7"],[96,"failed","Nov 22 10:05:31 web01 sshd[3620]: Failed password for invalid user support from 198.51.100.7 port 44900 ssh2","198.51.100.7"],[97,"other","Nov 22 10:05:31 web01 sshd[3620]: Connection closed by invalid user support 198.51.100.7 port 44900 [preauth]","198.51.100.7"],[98,"connection","Nov 22 10:05:32 web01 sshd[3621]: Connection from 198.51.100.7 port 44902 on 10.0.0.5 port 22 rdomain \"\"","198.51.100.7"],[99,"client","Nov 22 10:05:32 web01 sshd[3621]: debug1: Remote protocol version 2.0, remote software version Go","198.51.100.7"],[100,"invalid_user","Nov 22 10:05:32 web01 sshd[3621]: Invalid user git from 198.51.100.7 port 44902","198.51.100.7"],[101,"failed","Nov 22 10:05:33 web01 sshd[3621]: Failed password for invalid user git from 198.51.100.7 port 44902 ssh2","198.51.100.7"],[102,"other","Nov 22 10:05:33 web01 sshd[3621]: Connection closed by invalid user git 198.51.100.7 port 44902 [preauth]","198.51.100.7"],[103,"other","Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)",null],[104,"other","Nov 22 10:30:01 web01 CRON[3702]: pam_unix(cron:session): session closed for user root",null]],"lines_note":null,"source":"sample_auth.log","generated":"27/11/2026 08:15","threshold":5,"meta":["sample_auth.log","host web01","Nov 22 02:30:01 → Nov 22 10:30:01","gerado em 27/11/2026 08:15"]}</script>
 <script>
 (() => {
   "use strict";
   const D = JSON.parse(document.getElementById("data").textContent);
+  const L = D.labels;
   const $ = (sel) => document.querySelector(sel);
   const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
@@ -376,6 +405,7 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     for (const [k, v] of Object.entries(attrs || {})) {
       if (v == null || v === false) continue;
       if (k === "class") el.className = v;
+      else if (k === "style") el.style.cssText = v;          // CSSOM: permitido pela CSP
       else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
       else el.setAttribute(k, v === true ? "" : v);
     }
@@ -386,87 +416,46 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     return el;
   }
 
-  const RISK = {
-    critico: "Crítico",
-    alto: "Alto",
-    medio: "Médio",
-    baixo: "Baixo",
-  };
-  const KIND = {
-    failed: "FALHA",
-    invalid_user: "USUÁRIO INVÁLIDO",
-    accepted: "ACEITO",
-    session: "SESSÃO",
-    recon: "VARREDURA",
-    client: "CLIENTE",
-    connection: "CONEXÃO",
-    other: "",
-  };
+  const RISK = { critico: "Crítico", alto: "Alto", medio: "Médio", baixo: "Baixo" };
+  const GLYPH = { failed: "✕", accepted: "✓", warn: "!", recon: "?", crit: "!" };
   const MITRE_URL = (id) => "https://attack.mitre.org/techniques/" + id.replace(".", "/") + "/";
   const byIp = Object.fromEntries(D.attackers.map((a) => [a.ip, a]));
-  const critLines = new Set(D.alerts.map((a) => a.line));
-  const clock = (t) => (t ? t.replace(/^.*?(\d{2}:\d{2}:\d{2}).*$/, "$1") : "—");
+  const critLines = new Set(D.critical_lines);
   const plural = (n, one, many) => nf.format(n) + " " + (n === 1 ? one : many);
 
-  const badge = (risk) => h("span", { class: "badge " + risk }, RISK[risk]);
+  const badge = (risk, text) => h("span", { class: "badge " + risk }, text || RISK[risk]);
   const ipButton = (ip) =>
     h("button", { class: "ip-link", type: "button", onclick: (e) => { e.stopPropagation(); showIp(ip); } }, ip);
   const lineLink = (n) =>
     h("button", { class: "line-link", type: "button", "data-tip": "Ir para a linha " + n, onclick: () => jumpTo(n) }, "L" + n);
 
   // ---------- Cabeçalho ----------
-  const meta = $("#meta");
-  meta.append(
-    h("span", null, h("span", { class: "mono" }, D.file)),
-    h("span", null, "host " + (D.hosts.join(", ") || "—")),
-    h("span", null, (D.period.start || "—") + " → " + (D.period.end || "—")),
-    h("span", null, "gerado em " + D.generated)
-  );
+  if (D.nav) {
+    $("#nav").append(h("a", { class: "back", href: D.nav.href }, "← " + D.nav.label));
+    $("#eyebrow").textContent = D.nav.title || "Analisador de logs";
+  } else {
+    $("#eyebrow").textContent = D.kind === "web" ? "Analisador de logs web" : "Analisador de logs SSH";
+  }
+  $("#meta").append(...D.meta.map((m, i) => h("span", null, i === 0 ? h("span", { class: "mono" }, m) : m)));
 
   // ---------- Veredito ----------
+  const V = D.verdict;
   const verdict = $("#verdict");
-  if (D.alerts.length) {
-    const a = D.alerts[0];
-    const who = byIp[a.ip];
-    verdict.append(
-      badge("critico"),
-      h("h2", null, D.alerts.length === 1 ? "Um atacante conseguiu entrar" : D.alerts.length + " logins aceitos após brute force"),
-      h("p", null,
-        h("strong", { class: "mono" }, a.ip),
-        " errou a senha " + plural(a.failures, "vez", "vezes") + " e depois entrou como ",
-        h("strong", { class: "mono" }, a.user),
-        " em " + a.time + (who ? ". Ferramenta provável: " + who.tool + "." : "."),
-        D.alerts.length > 1 ? " Há outros " + (D.alerts.length - 1) + " alertas na tabela abaixo." : ""
-      ),
-      h("div", { class: "actions" },
-        h("button", { type: "button", onclick: () => jumpTo(a.line) }, "Ver o login no log (L" + a.line + ")"),
-        h("button", { type: "button", onclick: () => showIp(a.ip) }, "Todas as linhas de " + a.ip)
-      )
-    );
-  } else {
-    verdict.classList.add("ok");
-    verdict.append(
-      badge("baixo"),
-      h("h2", null, "Nenhum atacante conseguiu entrar"),
-      h("p", null, D.totals.bruteforce
-        ? plural(D.totals.bruteforce, "IP passou", "IPs passaram") + " do limite de " + D.threshold + " falhas, mas nenhum teve login aceito depois disso."
-        : "Nenhum IP passou do limite de " + D.threshold + " falhas.")
-    );
-  }
+  verdict.classList.add(V.level);
+  verdict.append(
+    badge(V.level),
+    h("h2", null, V.title),
+    h("p", null, V.text),
+    V.actions.length ? h("div", { class: "actions" }, V.actions.map((a) =>
+      h("button", { type: "button", onclick: () => (a.line ? jumpTo(a.line) : showIp(a.ip)) }, a.label))) : null
+  );
 
   // ---------- KPIs ----------
-  const kpis = [
-    ["Eventos de login", D.totals.events, plural(D.totals.lines, "linha lida", "linhas lidas")],
-    ["Falhas", D.totals.failed, D.totals.events ? nf.format((100 * D.totals.failed) / D.totals.events) + "% das tentativas" : ""],
-    ["Logins aceitos", D.totals.accepted, plural(D.totals.critical, "após brute force", "após brute force")],
-    ["IPs de origem", D.totals.ips, plural(D.attackers.filter((a) => a.risk !== "baixo").length, "suspeito", "suspeitos")],
-    ["Brute force", D.totals.bruteforce, "IPs com ≥ " + D.threshold + " falhas"],
-  ];
-  $("#kpis").append(...kpis.map(([label, value, note]) =>
+  $("#kpis").append(...D.kpis.map((k) =>
     h("div", { class: "kpi" },
-      h("div", { class: "label" }, label),
-      h("div", { class: "value" }, nf.format(value)),
-      h("div", { class: "note" }, note))));
+      h("div", { class: "label" }, k.label),
+      h("div", { class: "value" }, nf.format(k.value)),
+      h("div", { class: "note" }, k.note))));
 
   // ---------- Origem ----------
   const pace = (a) => {
@@ -475,15 +464,14 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
       h("div", { class: "why" }, a.machine_pace ? "ritmo de máquina" : "ritmo humano"));
   };
   const usersCell = (a) => {
-    if (!a.users.length && !a.accepted_users.length) return h("span", { class: "muted" }, "—");
-    const list = a.users.length ? a.users : a.accepted_users;
-    const shown = list.slice(0, 3).join(", ") + (list.length > 3 ? " +" + (list.length - 3) : "");
-    return h("span", null, nf.format(list.length), h("div", { class: "why mono" }, shown));
+    if (!a.users.length) return h("span", { class: "muted" }, "—");
+    const shown = a.users.slice(0, 3).join(", ") + (a.users.length > 3 ? " +" + (a.users.length - 3) : "");
+    return h("span", null, nf.format(a.users.length), h("div", { class: "why mono" }, shown));
   };
   $("#attackers").append(
     h("thead", null, h("tr", null,
-      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, "Falhas"),
-      h("th", { class: "num" }, "Aceitos"), h("th", null, "Contas"), h("th", null, "Ferramenta provável"),
+      h("th", null, "IP"), h("th", null, "Risco"), h("th", { class: "num" }, L.failed),
+      h("th", { class: "num" }, L.accepted), h("th", null, L.users), h("th", null, "Ferramenta provável"),
       h("th", null, "Intervalo"), h("th", null, "Atividade"))),
     h("tbody", null, D.attackers.map((a) =>
       h("tr", { onclick: () => showIp(a.ip) },
@@ -494,64 +482,77 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
         h("td", null, usersCell(a)),
         h("td", null, a.tool, h("div", { class: "why" }, a.tool_basis)),
         h("td", null, pace(a)),
-        h("td", { class: "mono" }, clock(a.first) + " → " + clock(a.last))
+        h("td", { class: "mono" }, a.period)
       )))
   );
 
   // ---------- Alvo ----------
-  const target = $("#target");
-  const t0 = D.targets[0];
-  const existing = D.accounts.filter((x) => x.exists).map((x) => x.user);
-  const missing = D.accounts.filter((x) => !x.exists).map((x) => x.user);
-  const sessions = D.attackers.filter((a) => a.risk === "critico").flatMap((a) => a.sessions.map((s) => ({ ...s, ip: a.ip })));
-  target.append(
+  const T = D.target;
+  $("#target-sub").textContent = L.target_sub;
+  $("#target").append(
     h("div", { class: "target-host" },
-      h("span", { class: "big" }, t0 ? t0.dst + ":" + t0.port : (D.hosts[0] || "—")),
-      h("span", { class: "tag" }, "SSH"),
-      h("span", { class: "sub" }, "host " + (D.hosts.join(", ") || "—"))),
-    h("dl", { class: "kv" },
-      h("dt", null, "Conexões"),
-      h("dd", null, D.targets.length
-        ? D.targets.map((t) => nf.format(t.connections) + " na porta " + t.port).join(", ")
-        : h("span", { class: "muted" }, "porta não registrada (ative LogLevel VERBOSE)")),
-      h("dt", null, "Contas que existem"),
-      h("dd", null, existing.length ? h("div", { class: "chips" }, existing.map((u) => h("span", { class: "tag mono" }, u))) : "—"),
-      h("dt", null, "Contas inexistentes"),
-      h("dd", null, missing.length
-        ? [h("div", { class: "chips" }, missing.map((u) => h("span", { class: "tag mono" }, u))),
-           h("div", { class: "why" }, "Nomes tirados de listas prontas (wordlists).")]
-        : "—"),
-      h("dt", null, "Sessões do atacante"),
-      h("dd", null, sessions.length
-        ? sessions.map((s) => h("div", null, h("strong", { class: "mono" }, s.user), " aberta às " + clock(s.time) + " por " + s.ip + " ", lineLink(s.n)))
-        : h("span", { class: "muted" }, "nenhuma"))
-    )
+      h("span", { class: "big" }, T.title),
+      h("span", { class: "tag" }, T.tag),
+      h("span", { class: "sub" }, T.sub)),
+    h("dl", { class: "kv" }, T.rows.flatMap((r) => {
+      let value;
+      if (r.chips) value = r.chips.length ? h("div", { class: "chips" }, r.chips.map((c) => h("span", { class: "tag mono" }, c))) : h("span", { class: "muted" }, "—");
+      else if (r.items) value = r.items.length ? r.items.map((it) => h("div", null, it.text + " ", lineLink(it.line))) : h("span", { class: "muted" }, "nenhum");
+      else value = h("span", { class: r.muted ? "muted" : null }, r.text);
+      return [h("dt", null, r.label), h("dd", null, value, r.note ? h("div", { class: "why" }, r.note) : null)];
+    }))
   );
 
-  // ---------- Contas ----------
+  // ---------- Contas / caminhos ----------
+  $("#accounts-title").textContent = L.accounts_title;
+  $("#accounts-sub").textContent = L.accounts_sub;
   const top = D.accounts.slice(0, 10);
-  const maxFail = Math.max(1, ...top.map((x) => x.failed));
+  const maxCount = Math.max(1, ...top.map((x) => x.count));
   $("#accounts").append(...(top.length ? top.map((x) =>
-    h("div", { class: "bar-row", "data-tip": x.user + ": " + plural(x.failed, "falha", "falhas") + "\nde " + x.ips.join(", ") + (x.exists ? "" : "\nconta não existe no servidor") },
-      h("span", { class: "name" }, x.user),
-      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.failed) / maxFail + "%" })),
-      h("span", { class: "val" }, nf.format(x.failed)),
-      h("div", { class: "flags" },
-        x.compromised ? h("span", { class: "badge critico" }, "comprometida") : null,
-        !x.exists ? h("span", { class: "tag" }, "não existe") : null)
-    )) : [h("p", { class: "muted" }, "Nenhuma falha de login.")]));
+    h("div", { class: "bar-row", "data-tip": x.tip },
+      h("span", { class: "name" }, x.name),
+      h("div", { class: "bar-track" }, h("div", { class: "bar", style: "width:" + (100 * x.count) / maxCount + "%" })),
+      h("span", { class: "val" }, nf.format(x.count)),
+      h("div", { class: "flags" }, x.flags.map((f) => f.critical ? badge("critico", f.text) : h("span", { class: "tag" }, f.text)))
+    )) : [h("p", { class: "muted" }, L.accounts_empty)]));
+
+  // ---------- Como corrigir ----------
+  function copyButton(text) {
+    const btn = h("button", { type: "button" }, "Copiar");
+    btn.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); btn.textContent = "Copiado"; }
+      catch (_) { btn.textContent = "Selecione e copie"; }
+      setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
+    });
+    return btn;
+  }
+  if (!D.findings.length) {
+    $("#fixes").append(h("p", { class: "muted" }, "Nada para corrigir: nenhum ataque encontrado neste log."));
+  }
+  $("#fixes").append(...D.findings.map((f) => {
+    const code = f.commands.join("\n");
+    return h("div", { class: "fix" },
+      h("div", { class: "item-head" }, badge(f.severity), h("strong", null, f.title),
+        h("span", { class: "muted" }, plural(f.count, "ocorrência", "ocorrências"))),
+      h("p", { class: "sub", style: "margin-top:4px" }, f.why),
+      h("ol", null, f.steps.map((s) => h("li", null, s))),
+      code ? h("div", { class: "code" }, h("pre", null, code), copyButton(code)) : null,
+      h("div", { class: "evidence" }, "IPs:", ...f.ips.slice(0, 6).map(ipButton),
+        f.ips.length > 6 ? " +" + (f.ips.length - 6) : null),
+      f.evidence.length ? h("div", { class: "evidence" }, "Evidência:", ...f.evidence.map(lineLink)) : null
+    );
+  }));
 
   // ---------- Ferramentas ----------
   const tools = {};
-  for (const a of D.attackers) {
-    (tools[a.tool] = tools[a.tool] || []).push(a);
-  }
+  for (const a of D.attackers) (tools[a.tool] = tools[a.tool] || []).push(a);
   $("#tools").append(...Object.entries(tools).map(([tool, list]) =>
     h("div", { class: "item" },
-      h("div", { class: "item-head" }, h("strong", null, tool), ...list.map((a) => badge(a.risk))),
+      h("div", { class: "item-head" }, h("strong", null, tool), ...[...new Set(list.map((a) => a.risk))].map((r) => badge(r))),
       h("p", null, list[0].tool_basis),
-      h("div", { class: "evidence" }, "IPs:", ...list.map((a) => ipButton(a.ip)),
-        ...list.filter((a) => a.software).map((a) => lineLink(a.software.n)))
+      h("div", { class: "evidence" }, "IPs:", ...list.slice(0, 8).map((a) => ipButton(a.ip)),
+        list.length > 8 ? " +" + (list.length - 8) : null,
+        ...list.filter((a) => a.software).slice(0, 3).map((a) => lineLink(a.software.n)))
     )));
 
   // ---------- Técnicas ----------
@@ -561,59 +562,47 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
         h("a", { class: "mitre", href: MITRE_URL(t.id), target: "_blank", rel: "noopener noreferrer" }, t.id),
         h("strong", null, t.name)),
       h("p", null, t.description),
-      h("div", { class: "evidence" }, "IPs:", ...t.ips.map(ipButton)),
+      h("div", { class: "evidence" }, "IPs:", ...t.ips.slice(0, 8).map(ipButton)),
       h("div", { class: "evidence" }, "Evidência:", ...t.evidence.map(lineLink))
     )) : [h("p", { class: "muted item" }, "Nenhuma técnica de ataque identificada.")]));
 
   // ---------- Sequências ----------
-  const chip = (cls, glyph, label) => h("span", { class: "legend-item" }, h("span", { class: "chip " + cls, "aria-hidden": "true", style: "cursor:default" }, glyph), label);
+  $("#seq-intro").textContent = L.seq_intro;
   $("#seq-legend").append(
-    chip("failed", "✕", "Falha"),
-    chip("accepted", "✓", "Login aceito"),
-    chip("accepted crit", "✓", "Aceito após o limite (crítico)"),
-    chip("recon", "?", "Varredura"),
-    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), "Limite de " + D.threshold + " falhas")
+    ...L.legend.map(([cls, label]) => h("span", null, h("span", { class: "chip static " + cls, "aria-hidden": "true" }, GLYPH[cls]), label)),
+    h("span", null, h("span", { class: "limit", "aria-hidden": "true", style: "height:20px" }), L.limit)
   );
   const MAX_CHIPS = 150;
-  $("#sequences").append(...D.attackers.filter((a) => a.sequence.length).map((a) => {
+  const withSeq = D.attackers.filter((a) => a.sequence.length);
+  $("#sequences").append(...(withSeq.length ? withSeq.map((a) => {
     const chips = [];
     for (const s of a.sequence.slice(0, MAX_CHIPS)) {
-      let cls, glyph, label;
-      if (s.k === "recon") { cls = "recon"; glyph = "?"; label = "Varredura: " + s.label; }
-      else if (s.k === "failed") { cls = "failed"; glyph = "✕"; label = "Falha nº " + s.count + " · " + s.user; }
-      else { cls = s.after_limit ? "accepted crit" : "accepted"; glyph = "✓"; label = (s.after_limit ? "ACEITO APÓS O LIMITE · " : "Aceito · ") + s.user; }
+      const cls = s.crit ? "crit" : s.k;
       chips.push(h("button", {
         class: "chip " + cls, type: "button",
-        "aria-label": label + ", linha " + s.n,
-        "data-tip": label + "\n" + s.time + " · linha " + s.n,
+        "aria-label": s.label + ", linha " + s.n,
+        "data-tip": s.label + "\n" + s.time + " · linha " + s.n,
         onclick: () => jumpTo(s.n),
-      }, glyph));
-      if (s.k === "failed" && s.count === D.threshold) {
-        chips.push(h("span", { class: "limit", "data-tip": "Limite de " + D.threshold + " falhas atingido" }, h("span", null, "limite")));
+      }, GLYPH[cls]));
+      if (s.count === D.threshold) {
+        chips.push(h("span", { class: "limit", "data-tip": L.limit + " atingido" }, h("span", null, "limite")));
       }
     }
     const extra = a.sequence.length - MAX_CHIPS;
     return h("div", { class: "seq-row" },
       h("div", { class: "seq-who" }, ipButton(a.ip), badge(a.risk)),
       h("div", null,
-        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + extra) : null),
+        h("div", { class: "seq" }, chips, extra > 0 ? h("span", { class: "muted" }, " +" + nf.format(extra)) : null),
         h("div", { class: "seq-sum" },
-          plural(a.failed, "falha", "falhas") + " · " + plural(a.accepted, "aceito", "aceitos") +
-          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre tentativas" : "")))
+          plural(a.failed, ...L.failed_unit) + " · " + plural(a.accepted, ...L.accepted_unit) +
+          (a.median_gap != null ? " · " + nf.format(a.median_gap) + " s entre eventos" : "")))
     );
-  }));
+  }) : [h("p", { class: "muted" }, "Nenhum evento suspeito.")]));
 
   // ---------- Log ----------
-  const KIND_GROUPS = [
-    ["all", "Todas", () => true],
-    ["failed", "Falhas", (k) => k === "failed" || k === "invalid_user"],
-    ["accepted", "Aceitos e sessões", (k) => k === "accepted" || k === "session"],
-    ["recon", "Varreduras", (k) => k === "recon"],
-    ["client", "Banner do cliente", (k) => k === "client"],
-  ];
   const state = { kind: "all", ip: "", q: "" };
   const kindFilter = $("#kind-filter");
-  for (const [key, label] of KIND_GROUPS) {
+  for (const [key, label] of D.log_filters) {
     kindFilter.append(h("button", { type: "button", "data-kind": key, "aria-pressed": String(key === state.kind),
       onclick: () => { state.kind = key; renderLog(); } }, label));
   }
@@ -627,19 +616,20 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     searchTimer = setTimeout(() => { state.q = search.value.trim().toLowerCase(); renderLog(); }, 120);
   });
 
-  const TOKEN = /(\b\d{1,3}(?:\.\d{1,3}){3}\b)|\b(Failed|Accepted|Invalid user)\b/g;
+  // IPs clicáveis: só os IPs analisados (v4 e v6), casados por inteiro.
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const ipAlternatives = Object.keys(byIp).sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+  const KEYWORDS = "Failed|Accepted|Invalid user|GET|POST|PUT|DELETE|HEAD";
+  const TOKEN = new RegExp(
+    (ipAlternatives ? "(?<![\\w:.])(" + ipAlternatives + ")(?![\\w:])|" : "()") + "\\b(" + KEYWORDS + ")\\b", "g");
   function highlight(text) {
     const out = [];
     let last = 0;
     for (const m of text.matchAll(TOKEN)) {
+      if (!m[0]) continue;
       if (m.index > last) out.push(text.slice(last, m.index));
-      if (m[1] && byIp[m[1]]) {
-        out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
-      } else if (m[2]) {
-        out.push(h("span", { class: "hl-kw" }, m[2]));
-      } else {
-        out.push(m[0]);
-      }
+      if (m[1]) out.push(h("span", { class: "hl-ip", "data-ip": m[1], "data-tip": "Filtrar por " + m[1] }, m[1]));
+      else out.push(h("span", { class: "hl-kw" }, m[2]));
       last = m.index + m[0].length;
     }
     out.push(text.slice(last));
@@ -652,11 +642,12 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     const ip = e.target.closest(".hl-ip");
     if (ip) showIp(ip.dataset.ip, false);
   });
-  function matches(rec) {
-    const group = KIND_GROUPS.find((g) => g[0] === state.kind);
-    if (!group[2](rec.k)) return false;
-    if (state.ip && rec.ip !== state.ip) return false;
-    if (state.q && !rec.t.toLowerCase().includes(state.q)) return false;
+  const filterKinds = Object.fromEntries(D.log_filters.map(([key, , kinds]) => [key, new Set(kinds)]));
+  function matches([, k, t, ip]) {
+    const kinds = filterKinds[state.kind];
+    if (kinds.size && !kinds.has(k)) return false;
+    if (state.ip && ip !== state.ip) return false;
+    if (state.q && !t.toLowerCase().includes(state.q)) return false;
     return true;
   }
   function renderLog() {
@@ -664,17 +655,17 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
     ipFilter.value = state.ip;
     const rows = D.lines.filter(matches);
     const shown = rows.slice(0, MAX_ROWS);
-    logEl.replaceChildren(...shown.map((rec) => {
-      const crit = rec.k === "accepted" && critLines.has(rec.n);
-      return h("div", { class: "log-row", id: "L" + rec.n },
-        h("span", { class: "ln" }, rec.n),
-        h("span", { class: "k " + rec.k + (crit ? " crit" : "") }, crit ? "ACEITO ⚠" : KIND[rec.k]),
-        h("span", { class: "txt" }, highlight(rec.t)));
+    logEl.replaceChildren(...shown.map(([n, k, t]) => {
+      const crit = critLines.has(n);
+      return h("div", { class: "log-row", id: "L" + n },
+        h("span", { class: "ln" }, n),
+        h("span", { class: "k " + k + (crit ? " crit" : "") }, crit ? "CRÍTICO" : (D.kind_labels[k] || "")),
+        h("span", { class: "txt" }, highlight(t)));
     }));
     if (!shown.length) logEl.append(h("div", { class: "log-row" }, h("span"), h("span"), h("span", { class: "muted" }, "Nenhuma linha com esses filtros.")));
     $("#log-count").textContent = "Mostrando " + nf.format(shown.length) + " de " + plural(rows.length, "linha", "linhas") +
-      (rows.length !== D.lines.length ? " (" + nf.format(D.lines.length) + " no arquivo)" : "") +
-      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto" : "");
+      (rows.length > MAX_ROWS ? " — refine os filtros para ver o resto." : ".") +
+      (D.lines_note ? " " + D.lines_note : "");
   }
 
   function showIp(ip, scroll = true) {
@@ -704,11 +695,11 @@ footer { color: var(--muted); font-size: 12.5px; margin-top: 24px; display: grid
   const tip = $("#tip");
   function placeTip(x, y) {
     const pad = 12, r = tip.getBoundingClientRect();
-    let left = x + pad, top = y + pad;
+    let left = x + pad, topY = y + pad;
     if (left + r.width > innerWidth - 8) left = x - r.width - pad;
-    if (top + r.height > innerHeight - 8) top = y - r.height - pad;
+    if (topY + r.height > innerHeight - 8) topY = y - r.height - pad;
     tip.style.left = Math.max(8, left) + "px";
-    tip.style.top = Math.max(8, top) + "px";
+    tip.style.top = Math.max(8, topY) + "px";
   }
   function showTip(target, x, y) {
     tip.textContent = target.dataset.tip;

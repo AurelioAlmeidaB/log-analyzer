@@ -1,29 +1,77 @@
-# Log Analyzer: detector de brute force em logs SSH
+# Log Analyzer: detector de ataques em logs SSH e web
 
-Lê um `auth.log` de servidor Linux e responde três perguntas:
+Lê logs de servidores Linux e de sites e responde:
 
-1. Alguém está tentando adivinhar senhas? (brute force)
-2. Quais contas estão sendo atacadas?
+1. Alguém está tentando invadir? (brute force, SQL injection, varreduras...)
+2. O que está sendo atacado? (contas, páginas, arquivos)
 3. **Algum atacante conseguiu entrar?** (a pergunta mais importante)
+4. Como corrigir cada problema encontrado.
 
-Python puro, sem bibliotecas externas. Gera um relatório no terminal e, se você quiser, um dashboard HTML que abre offline.
+Funciona de dois jeitos:
 
-**[▶ Ver o dashboard ao vivo](https://aurelioalmeidab.github.io/log-analyzer/dashboard.html)** (gerado a partir do `sample_auth.log`)
+- **Linha de comando**, em Python puro: relatório no terminal e um dashboard HTML que abre offline.
+- **Aplicação web**, com login seguro (senha + 2FA): cada pessoa cadastra suas aplicações, um agente envia os logs e o painel mostra os ataques em tempo quase real.
 
-## O que é brute force
+**Dashboards de exemplo:** [▶ servidor SSH](https://aurelioalmeidab.github.io/log-analyzer/dashboard.html) · [▶ site com nginx](https://aurelioalmeidab.github.io/log-analyzer/dashboard_web.html)
 
-É tentar senhas em sequência, geralmente com uma ferramenta automática, até acertar uma.
+## O que detecta
 
-## Por que "sucesso após falhas" é o alerta que importa
+**SSH (`/var/log/auth.log`)**
 
-Falhas de login acontecem o tempo todo: bots varrem a internet inteira testando `root/123456`. Elas mostram que você **está sendo atacado**. Um login **aceito** vindo do mesmo IP *depois* de dezenas de falhas mostra que o ataque **deu certo**: a senha foi descoberta e alguém está dentro do servidor.
+| Ataque | Como reconhece | Severidade |
+|---|---|---|
+| Login aceito depois de brute force | login aceito depois de ≥ 5 falhas **seguidas** do mesmo IP | crítica |
+| Brute force | IP com ≥ 5 falhas | alta |
+| Várias contas testadas | ≥ 3 usuários diferentes, inclusive inexistentes | média |
+| Varredura da porta 22 | conexões que fecham sem handshake SSH | baixa |
 
-Para isso o log é lido **na ordem**. Uma contagem simples não diz se o sucesso veio antes das falhas (usuário legítimo) ou depois (invasão).
+**Web (`access.log` do nginx ou Apache)**
 
-## Relatório no terminal
+| Ataque | Como reconhece | Severidade |
+|---|---|---|
+| Arquivo sensível exposto | `.env`, `.git`, backups etc. com resposta 200 | crítica |
+| Login aceito depois de brute force | POST no login com sucesso depois de ≥ 5 falhas seguidas | crítica |
+| Execução de comando (RCE) | `;cat`, `$(id)`, Log4Shell (`${jndi:`), Shellshock | alta |
+| SQL injection | `' OR 1=1`, `UNION SELECT`, `SLEEP(5)`... | alta |
+| Path traversal | `../`, `/etc/passwd` | alta |
+| XSS | `<script`, `onerror=`, `javascript:` | média |
+| Varredura | ≥ 20 respostas 404 ou ferramenta de varredura | baixa |
+
+Para cada ataque encontrado, o painel mostra **como corrigir**: passos em ordem e configurações prontas para copiar (sshd, fail2ban, nginx, código seguro).
+
+### Ferramenta usada pelo atacante
+
+| Sinal | Ferramenta provável |
+|---|---|
+| Banner SSH `libssh_*` | Hydra |
+| Banner SSH `libssh2_*` | Medusa ou Nmap `ssh-brute` |
+| Banner SSH `Go` | bot ou scanner escrito em Go |
+| Banner SSH `Nmap-SSH2-*` | Nmap |
+| User-agent `sqlmap`, `Nikto`, `gobuster`, `WPScan`, `Nuclei`, `(Hydra)`... | a própria ferramenta |
+| Intervalo mediano ≤ 3 s entre tentativas | ferramenta automática |
+
+É uma **heurística**: banner e user-agent podem ser falsificados. No SSH, o banner só aparece com `LogLevel DEBUG1` e a porta de destino com `LogLevel VERBOSE` no `sshd_config`.
+
+Cada IP também recebe as técnicas do **MITRE ATT&CK** correspondentes (T1110 brute force, T1190 exploração de aplicação, T1595 varredura, T1078 conta válida, T1552 credenciais em arquivos), com as linhas do log que servem de evidência.
+
+## Por que "login depois de falhas" é o alerta que importa
+
+Falhas de login acontecem o tempo todo: robôs varrem a internet testando `root/123456`. Elas mostram que você **está sendo atacado**. Um login **aceito** vindo do mesmo IP *logo depois* de várias falhas mostra que o ataque **deu certo**.
+
+Por isso o log é lido **na ordem**, e o contador de falhas **zera a cada login aceito**. Sem isso, uma pessoa que erra a senha duas vezes por dia viraria "atacante" no terceiro dia de um log longo.
+
+## Linha de comando
+
+Só precisa de Python 3.8 ou mais novo; nada para instalar.
 
 ```
-$ python log_analyzer.py sample_auth.log
+python log_analyzer.py sample_auth.log                     # SSH
+python log_analyzer.py sample_access.log                   # web: o formato é detectado sozinho
+python log_analyzer.py sample_auth.log --html dashboard.html
+python log_analyzer.py /var/log/auth.log --limite 10 --json
+```
+
+```
 === RELATÓRIO DE ANÁLISE DE LOG ===
 Eventos de login: 23  |  Falhas: 21
 
@@ -43,106 +91,129 @@ Eventos de login: 23  |  Falhas: 21
    ... (+10 contas)
 ```
 
-## Dashboard
+Aceita data clássica do syslog e RFC 3339 (Ubuntu 24.04), `sshd` e `sshd-session` (OpenSSH 9.8+), IPv4 e IPv6, linhas agrupadas pelo rsyslog (`message repeated N times`) e o formato *combined* do nginx/Apache.
+
+## Aplicação web
+
+### Rodar na sua máquina
 
 ```
-python log_analyzer.py sample_auth.log --html dashboard.html
+python3 -m venv .venv                 # no Ubuntu: sudo apt install python3-venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/flask --app webapp run
 ```
 
-Abra o `dashboard.html` no navegador, ou veja a [versão publicada](https://aurelioalmeidab.github.io/log-analyzer/dashboard.html) do log de exemplo. Ele mostra:
+Abra http://127.0.0.1:5000, crie a conta e siga os passos.
 
-| Seção | O que mostra |
+### Login
+
+1. **Cadastro** com e-mail e senha (mínimo de 10 caracteres; senhas óbvias são recusadas).
+2. **2FA obrigatório**: escaneie o QR code com Google Authenticator, Microsoft Authenticator, Authy, 1Password ou Bitwarden e digite o código.
+3. **8 códigos de recuperação** para quem perder o celular, cada um vale uma vez.
+4. Nos próximos acessos: e-mail e senha, depois o código de 6 dígitos.
+
+### Monitorar uma aplicação
+
+1. Em **Nova aplicação**, escolha *Servidor Linux (SSH)* ou *Site ou API (nginx/Apache)*.
+2. Copie a chave (ela aparece uma vez).
+3. **Para testar:** envie um arquivo de log pela página.
+4. **Para monitorar sempre:** rode o agente no servidor:
+
+```
+curl -fsSO https://seu-log-analyzer/agent.py
+export LA_CHAVE="la_..."
+python3 agent.py --servidor https://seu-log-analyzer --arquivo /var/log/auth.log
+```
+
+O agente usa só a biblioteca padrão, envia as linhas novas a cada 5 segundos, continua de onde parou depois de reiniciar, percebe rotação de log e tenta de novo se o servidor cair.
+
+### Segurança implementada
+
+| Proteção | Como |
 |---|---|
-| Veredito | Se algum atacante entrou, como e quando |
-| Origem dos ataques | Cada IP com risco, falhas, contas tentadas, ferramenta provável e ritmo das tentativas |
-| Alvo | Host e porta atacados, contas que existem e contas inexistentes (vindas de wordlists), sessões abertas pelo atacante |
-| Contas mais atacadas | Falhas por conta, marcando as comprometidas e as que nem existem |
-| Ferramentas e técnicas | Ferramenta provável (Hydra, Nmap, bot em Go...) e técnicas MITRE ATT&CK, cada uma com as linhas do log que servem de evidência |
-| Sequência por IP | Os eventos de cada IP em ordem, com o limite de falhas marcado: mostra visualmente por que a ordem importa |
-| Log completo | Todas as linhas, com filtro por tipo e por IP e busca; clicar em qualquer evidência leva à linha |
+| Senhas | hash scrypt (Werkzeug); nunca guardadas em texto |
+| 2FA | TOTP (RFC 6238) com janela de ±30 s; o mesmo código não serve duas vezes |
+| Brute force no próprio login | 5 senhas erradas por conta ou 20 por IP em 15 min bloqueiam; o mesmo para o código 2FA |
+| Enumeração de contas | mesma mensagem e mesmo tempo de resposta para e-mail inexistente e senha errada |
+| Sessão | cookie HttpOnly, SameSite=Lax, Secure com HTTPS; sessão nova a cada login; expira em 8 h |
+| CSRF | token em todo formulário |
+| XSS | escape automático nos templates; CSP com nonce, sem `unsafe-inline`; o texto do log nunca vira HTML |
+| Clickjacking e outros | `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, HSTS com HTTPS |
+| Acesso entre contas | toda consulta filtra pelo dono; aplicação de outra pessoa responde 404 |
+| Chaves de API | geradas com `secrets`, guardadas só como hash SHA-256, mostradas uma vez, podem ser trocadas |
+| Redirecionamento aberto | `?next=` só aceita caminhos do próprio site |
 
-<!-- Coloque aqui um print do dashboard: docs/dashboard.png -->
+### Colocar no ar
 
-### Como a ferramenta é identificada
-
-| Sinal no log | Conclusão |
-|---|---|
-| Banner `libssh_*` | Hydra (o módulo SSH do Hydra usa a libssh) |
-| Banner `libssh2_*` | Medusa ou Nmap `ssh-brute` |
-| Banner `Go` | Bot ou scanner escrito em Go (comum em botnets) |
-| Banner `Nmap-SSH2-*` | Scripts NSE do Nmap |
-| Banner `paramiko` / `AsyncSSH` | Script em Python |
-| Intervalo mediano ≤ 3 s entre tentativas | Ferramenta automática (ninguém digita tão rápido) |
-| Conexão que sai sem handshake (`kex_exchange_identification`, `banner exchange`) | Varredura de portas |
-
-É uma **heurística**: o atacante pode trocar o banner. O banner só aparece com `LogLevel DEBUG1` no `/etc/ssh/sshd_config`, e a porta de destino com `LogLevel VERBOSE`. Sem isso, o dashboard funciona com o que tiver (ritmo e contagens).
-
-### Técnicas MITRE ATT&CK
-
-| ID | Técnica | Quando é marcada |
-|---|---|---|
-| T1046 | Varredura de serviço | Conexões sem handshake SSH |
-| T1110.001 | Adivinhação de senha | ≥ 3 falhas na mesma conta |
-| T1110.003 | Password spraying | ≥ 3 contas diferentes tentadas |
-| T1078 | Uso de conta válida | Login aceito depois do limite de falhas |
-
-## Regras de detecção
-
-| Regra | Lógica | Severidade |
-|---|---|---|
-| Brute force | IP com falhas ≥ limite (padrão 5) | média |
-| Sucesso após falhas | IP que atingiu o limite e **depois** teve login aceito | crítica |
-| Contas visadas | contagem de falhas por usuário | informativa |
-
-## Como rodar
-
-Requer Python 3.8 ou mais novo.
+`flask run` é só para desenvolvimento. Em produção use HTTPS e um servidor WSGI:
 
 ```
-python log_analyzer.py sample_auth.log
-python log_analyzer.py sample_auth.log --html dashboard.html
-python log_analyzer.py /var/log/auth.log          # no seu servidor (precisa de sudo)
+pip install gunicorn
+LA_HTTPS=1 LA_BEHIND_PROXY=1 LA_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
+  gunicorn -w 2 -b 127.0.0.1:8000 "webapp:create_app()"
 ```
 
-Formatos aceitos: data clássica do syslog (`Nov 22 02:47:03`) e RFC 3339 (`2026-11-22T02:47:03.123456-03:00`, padrão do Ubuntu 24.04), processo `sshd` ou `sshd-session` (OpenSSH 9.8+), IPv4 e IPv6, e as linhas agrupadas pelo rsyslog (`message repeated N times`).
+Com o nginx na frente fazendo o HTTPS (Let's Encrypt). `LA_ALLOW_SIGNUP=0` fecha o cadastro depois de criar sua conta. O GitHub Pages só hospeda os dashboards estáticos; a aplicação precisa de um servidor (uma VPS, Render, Railway, Fly.io...).
 
 ## Como testar
 
 ```
-python -m unittest -v
+python -m unittest -v                  # analisador, agente e 2FA (sem dependências)
+.venv/bin/python -m unittest -v        # inclui os testes da aplicação web
 ```
 
-28 testes cobrindo regex, leitura, contagens, detecções, relatório e dashboard, incluindo:
+99 testes, entre eles:
 
-- `test_order_matters`: sucesso **antes** das falhas não gera alerta
-- `test_legit_user_with_typos_is_not_flagged`: usuário que errou a senha duas vezes não é suspeito
-- `test_html_escapes_attacker_controlled_text`: o nome de usuário vem do atacante, então um usuário chamado `</script><script>...` não pode executar código no dashboard
+- `test_order_matters` e `test_counter_resets_after_success`: a ordem do log e o contador que zera
+- `test_legit_user_is_not_flagged_after_many_days`: a usuária que erra a senha não vira atacante num log longo
+- `test_rfc6238_vectors`: o 2FA bate com os vetores oficiais do RFC 6238
+- `test_totp_code_cannot_be_reused`, `test_brute_force_on_login_is_blocked`, `test_other_user_cannot_see_app`
+- `test_html_escapes_attacker_controlled_text`: um usuário chamado `</script><script>...` no log não executa código no painel
 
-## O log de exemplo
+## Logs de exemplo
 
-`sample_auth.log` tem quatro cenários, todos com IPs de documentação (RFC 5737), que não pertencem a ninguém:
+Todos com IPs de documentação (RFC 5737), que não pertencem a ninguém.
 
-| IP | Cenário | Resultado esperado |
+`sample_auth.log` (SSH):
+
+| IP | Cenário | Resultado |
 |---|---|---|
-| 203.0.113.5 | Hydra: 12 falhas e depois entra como `root` | **crítico** |
-| 198.51.100.7 | Bot em Go: varre a porta e tenta 7 contas | alto (brute force) |
+| 203.0.113.5 | Hydra: 12 falhas e entra como `root` | **crítico** |
+| 198.51.100.7 | bot em Go: varre a porta e tenta 7 contas | alto |
 | 203.0.113.88 | Nmap: só varredura | médio |
-| 192.0.2.10 | `maria` erra a senha duas vezes e entra | baixo, não é suspeito |
+| 192.0.2.10 | `maria` erra a senha duas vezes e entra | baixo |
+
+`sample_access.log` (nginx):
+
+| IP | Cenário | Resultado |
+|---|---|---|
+| 198.51.100.23 | Nikto acha o `.env` exposto | **crítico** |
+| 203.0.113.50 | Hydra no `/wp-login.php`: 8 erros e entra | **crítico** |
+| 203.0.113.9 | sqlmap com 10 payloads de SQL injection | alto |
+| 203.0.113.200 | Log4Shell e Shellshock no user-agent | alto |
+| 198.51.100.77 | Gobuster: 24 páginas inexistentes | médio |
+| 192.0.2.44 | visitante normal | baixo |
 
 ## Estrutura
 
 ```
-log_analyzer.py          parse_line → load_events → contagens → detecções → relatório
-dashboard.py             análise extra (conexões, banners, varreduras) e geração do HTML
-dashboard_template.html  HTML/CSS/JS do dashboard, sem dependências
-sample_auth.log          log de exemplo
-test_log_analyzer.py     testes (unittest)
+log_analyzer.py          CLI e regras do SSH: parse_line → eventos → contagens → detecções → relatório
+web_log_analyzer.py      regras do nginx/Apache: assinaturas de ataque, login, ferramenta pelo user-agent
+remediation.py           como corrigir cada tipo de ataque
+dashboard.py             monta os dados do painel (SSH e web) e gera o HTML
+dashboard_template.html  o painel: HTML/CSS/JS sem dependências
+agent.py                 agente que envia o log para a aplicação web
+webapp/                  aplicação web (Flask + SQLite): contas, 2FA, aplicações, API
+tests/                   testes (unittest)
 ```
 
 ## Próximos passos
 
-- **v2:** falhas em janela de tempo (5 em 1 minuto é mais grave que 5 em um dia); `--threshold` e `--json`; logs de nginx/Apache (sequências de 404, `/wp-login.php`, `../`, `' OR 1=1`)
-- **v3:** mandar só o resumo agregado (não o log cru) para um LLM explicar o incidente e sugerir a severidade
+- Falhas em janela de tempo (5 falhas em 1 minuto é mais grave que 5 em um dia)
+- Alertas por e-mail ou Telegram quando aparecer um ataque crítico
+- Recuperação de senha por e-mail e verificação do e-mail no cadastro
+- Passkeys (WebAuthn) como alternativa ao código de 6 dígitos
+- Mandar só o resumo agregado (não o log cru) para um LLM explicar o incidente em português
 
 ## Aviso
 

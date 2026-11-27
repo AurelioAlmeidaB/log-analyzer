@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ app.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="muted"><a href="{{ url_for('monitor.index') }}">Aplicações</a> /</p>
+    <h1>{{ app.name }}</h1>
+    <p class="sub">{{ kinds[app.kind] }}</p>
+  </div>
+  {% if line_count %}<a class="btn primary" href="{{ url_for('monitor.dashboard', app_id=app.id) }}">Abrir painel de ataques</a>{% endif %}
+</div>
+
+{% if new_key %}
+<div class="alert warn" role="status">
+  <p><strong>Copie a chave agora.</strong> Por segurança ela não aparece de novo; se perder, gere outra.</p>
+  <div class="copy field"><pre id="api-key" class="key">{{ new_key }}</pre><button class="btn small" type="button" data-copy="api-key">Copiar</button></div>
+</div>
+{% endif %}
+
+{% if summary %}
+<section class="card">
+  <div class="actions"><span class="badge {{ summary.level }}">{{ {'critico': 'Crítico', 'alto': 'Alto', 'medio': 'Médio', 'baixo': 'Baixo'}[summary.level] }}</span><h2>{{ summary.title }}</h2></div>
+  {% if summary.findings %}<p class="sub field">Para corrigir: {{ summary.findings|join(" · ") }}</p>{% endif %}
+</section>
+{% endif %}
+
+<div class="two">
+  <section class="card stack">
+    <h2>Enviar um arquivo</h2>
+    <p class="sub">Para analisar agora um log que você já tem. Até 10 MB.</p>
+    <form method="post" action="{{ url_for('monitor.upload', app_id=app.id) }}" enctype="multipart/form-data" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="logfile">Arquivo de log ({{ log_hint }})</label>
+      <input id="logfile" name="logfile" type="file" required>
+      <button class="btn primary" type="submit">Enviar e analisar</button>
+    </form>
+  </section>
+  <section class="card stack">
+    <h2>Monitorar o tempo todo</h2>
+    <p class="sub">Rode o agente no servidor. Ele envia as linhas novas a cada 5 segundos e continua de onde parou.</p>
+    <div class="copy"><pre id="agent-cmd">curl -fsSO {{ server }}/agent.py
+export LA_CHAVE="{{ new_key or 'cole-a-chave-da-aplicacao' }}"
+python3 agent.py --servidor {{ server }} --arquivo {{ log_hint }}</pre><button class="btn small" type="button" data-copy="agent-cmd">Copiar</button></div>
+    {% if app.kind == 'ssh' %}<p class="hint">Para ler o auth.log sem sudo, coloque seu usuário no grupo adm: <code>sudo usermod -aG adm $USER</code> (depois saia e entre de novo).</p>{% endif %}
+    {% if not server.startswith('https://') %}<p class="hint">Fora da sua máquina, use HTTPS: a chave e os logs viajam nesse endereço.</p>{% endif %}
+  </section>
+</div>
+
+<section class="card mt">
+  <h2>Detalhes</h2>
+  <dl class="facts field">
+    <dt>Linhas guardadas</dt><dd>{{ line_count }} (as 200 mil mais recentes)</dd>
+    <dt>Último envio</dt><dd>{{ app.last_received_at or "nenhum" }}{% if app.last_received_at %} UTC{% endif %}</dd>
+    <dt>Limite de brute force</dt><dd>{{ app.threshold }} falhas seguidas</dd>
+    <dt>Chave</dt><dd><code>{{ app.api_key_hint }}</code></dd>
+  </dl>
+</section>
+
+<section class="card mt">
+  <details>
+    <summary>Chave, limpeza e exclusão</summary>
+    <div class="stack">
+      <form method="post" action="{{ url_for('monitor.rotate_key', app_id=app.id) }}" class="actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Gerar nova chave</button>
+        <span class="muted">A chave atual para de funcionar na hora; atualize o agente.</span>
+      </form>
+      <form method="post" action="{{ url_for('monitor.clear_lines', app_id=app.id) }}" class="actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Apagar as linhas recebidas</button>
+        <span class="muted">A aplicação e a chave continuam.</span>
+      </form>
+      <form method="post" action="{{ url_for('monitor.delete_app', app_id=app.id) }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="confirm_name">Para excluir, digite o nome da aplicação</label>
+        <input id="confirm_name" name="confirm_name" type="text" autocomplete="off" placeholder="{{ app.name }}" required>
+        <div><button class="btn danger" type="submit">Excluir aplicação e logs</button></div>
+      </form>
+    </div>
+  </details>
+</section>
+{% endblock %}
