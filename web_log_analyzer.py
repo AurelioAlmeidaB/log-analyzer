@@ -26,12 +26,14 @@ ACCESS_RE = re.compile(
 
 # Assinaturas de ataque, da mais grave para a menos grave. Testadas no caminho
 # decodificado (%27 -> '), e a de RCE também no user-agent (Log4Shell, Shellshock).
+# O texto vem do atacante: nenhuma regex pode ter repetição ambígua (ReDoS).
+# Ex.: "/\*.*?\*/" dentro de (...)+ levava mais de 10 s em "union/**/ /**/ ..." de 8 KB.
 ATTACK_PATTERNS = [
     ("rce", re.compile(
         r"\$\{jndi:|\(\)\s*\{\s*:;\s*\};|[;|`]\s*(?:cat|id|whoami|uname|wget|curl|nc|bash|sh)\b"
         r"|\$\((?:id|whoami|curl|wget|cat)\b|/bin/(?:ba)?sh\b|cmd\.exe|powershell", re.I)),
     ("sqli", re.compile(
-        r"union(?:\s|/\*.*?\*/)+(?:all\s+)?select|'\s*or\s+'?\d+'?\s*=\s*'?\d|\bor\s+1\s*=\s*1"
+        r"union(?:\s|/\*[^*]*\*/)+(?:all\s+)?select|'\s*or\s+'?\d+'?\s*=\s*'?\d|\bor\s+1\s*=\s*1"
         r"|sleep\(\s*\d+\s*\)|benchmark\(|information_schema|waitfor\s+delay|;\s*drop\s+table|'\s*--"
         r"|\band\s+\d+\s*=\s*\d+|=\d+'(?:&|$)", re.I)),
     ("traversal", re.compile(r"\.\./|\.\.\\|/etc/passwd|/etc/shadow|win\.ini|/proc/self/", re.I)),
@@ -110,11 +112,14 @@ def parse_request_line(line: str) -> dict | None:
     }
 
 
+MAX_INSPECT = 8_192   # caracteres analisados por requisição: limita o custo de linhas enormes
+
+
 def classify_request(req: dict) -> str | None:
     """Tipo de ataque da requisição ("sqli", "xss", ...) ou None."""
-    decoded = _decode(req["path"])
+    decoded = _decode(req["path"][:MAX_INSPECT])
     for kind, pattern in ATTACK_PATTERNS:
-        if pattern.search(decoded) or (kind == "rce" and pattern.search(req["ua"])):
+        if pattern.search(decoded) or (kind == "rce" and pattern.search(req["ua"][:MAX_INSPECT])):
             return kind
     if SENSITIVE_RE.search(decoded.split("?", 1)[0]):
         return "sensitive"

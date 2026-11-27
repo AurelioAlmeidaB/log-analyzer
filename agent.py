@@ -37,6 +37,21 @@ class InvalidKey(Exception):
     pass
 
 
+class RedirectRefused(Exception):
+    pass
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Não segue redirecionamentos: o urllib repassaria o cabeçalho Authorization,
+    com a chave, para o endereço novo, mesmo que seja outro servidor."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def state_file(server: str, path: str) -> str:
     base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
     ident = hashlib.sha256(f"{server}|{os.path.abspath(path)}".encode()).hexdigest()[:16]
@@ -86,11 +101,13 @@ def send(server: str, key: str, lines: list[str], timeout: float = 20) -> int:
                  "User-Agent": USER_AGENT},
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with _OPENER.open(request, timeout=timeout) as response:
             return json.load(response).get("recebidas", 0)
     except urllib.error.HTTPError as err:
         if err.code == 401:
             raise InvalidKey from err
+        if 300 <= err.code < 400:
+            raise RedirectRefused(err.headers.get("Location", "?")) from err
         raise
 
 
@@ -120,6 +137,10 @@ def run(server: str, key: str, log_path: str, interval: float, once: bool, from_
                 continue
         except InvalidKey:
             print("Chave inválida. Confira LA_CHAVE ou gere uma nova chave no painel.", file=sys.stderr)
+            return 2
+        except RedirectRefused as err:
+            print(f"O servidor pediu redirecionamento para {err}. Por segurança o agente não segue: "
+                  "use o endereço final (com https://) em --servidor.", file=sys.stderr)
             return 2
         except FileNotFoundError:
             print(f"{log_path} não existe (rotação em andamento?). Tentando de novo.", file=sys.stderr)

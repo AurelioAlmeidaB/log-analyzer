@@ -56,7 +56,7 @@ SYSLOG_RE = re.compile(
 # Mensagens do sshd que dão contexto ao ataque.
 # "Connection from" aparece com LogLevel VERBOSE; o banner do cliente, com LogLevel DEBUG1.
 CONNECTION_RE = re.compile(r"Connection from (?P<ip>\S+) port \d+ on (?P<dst>\S+) port (?P<dport>\d+)")
-SOFTWARE_RE = re.compile(r"remote software version (?P<software>.+?)\s*$")
+SOFTWARE_RE = re.compile(r"remote software version (?P<software>\S.*)")   # sem ".+?\s*$": quadrático
 INVALID_USER_RE = re.compile(r"Invalid user (?P<user>\S*) from (?P<ip>\S+)")
 SESSION_RE = re.compile(r"session opened for user (?P<user>[^\s(]+)")
 # IP remoto em mensagens como "Connection closed by invalid user admin 1.2.3.4 port 5555".
@@ -209,7 +209,7 @@ def classify_sshd_message(msg: str) -> tuple[str, str | None, dict]:
         return "connection", m["ip"], {"dst": m["dst"], "dport": m["dport"]}
     m = SOFTWARE_RE.search(msg)
     if m:
-        return "client", None, {"software": m["software"]}
+        return "client", None, {"software": m["software"].strip()}
     m = INVALID_USER_RE.search(msg)
     if m:
         return "invalid_user", m["ip"], {"user": m["user"]}

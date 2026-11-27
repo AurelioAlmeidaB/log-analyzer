@@ -100,6 +100,46 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(self.run_agent(key="la_errada"), 2)
         self.assertEqual(FakeServer.received, [])
 
+    def test_does_not_follow_redirects(self):
+        # O urllib repassaria "Authorization: Bearer <chave>" para o endereço do redirecionamento.
+        stolen = []
+
+        class Thief(BaseHTTPRequestHandler):
+            def do_GET(self):
+                stolen.append(self.headers.get("Authorization"))
+                self.send_response(200)
+                self.end_headers()
+            do_POST = do_GET
+
+            def log_message(self, *args):
+                pass
+
+        thief = ThreadingHTTPServer(("127.0.0.1", 0), Thief)
+        threading.Thread(target=thief.serve_forever, daemon=True).start()
+        self.addCleanup(thief.server_close)
+        self.addCleanup(thief.shutdown)
+
+        class Redirect(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{thief.server_address[1]}/roubar")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        redirect = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+        threading.Thread(target=redirect.serve_forever, daemon=True).start()
+        self.addCleanup(redirect.server_close)
+        self.addCleanup(redirect.shutdown)
+
+        self.write("linha\n")
+        with contextlib.redirect_stderr(io.StringIO()):
+            code = agent.main(["--servidor", f"http://127.0.0.1:{redirect.server_address[1]}", "--arquivo", self.log,
+                               "--chave", VALID_KEY, "--uma-vez"])
+        self.assertEqual(code, 2)
+        self.assertEqual(stolen, [])
+
     def test_big_file_in_batches(self):
         self.write("".join(f"linha {i}\n" for i in range(12_000)))
         self.run_agent()
